@@ -41,11 +41,12 @@ const Dashboard = ({
       .shift();
   }, [alerts]);
 
+  const totalAlerts = Array.isArray(alerts) ? alerts.length : 0;
   const incident = latestIncident || prioritizedAlert;
   const incidentSeverity = incident?.severity
     || (incident?.riskScore >= 90 ? 'Critical' : incident?.riskScore >= 75 ? 'High' : incident?.riskScore >= 50 ? 'Medium' : 'Low');
   const incidentTimestamp = incident?.timestamp || incident?.createdAt || null;
-  const incidentAlertCount = incident?.alerts ?? (incident === prioritizedAlert ? 1 : alerts.length || 0);
+  const incidentAlertCount = incident?.alerts ?? (incident === prioritizedAlert ? 1 : totalAlerts);
   const incidentTitle = incident?.title || incident?.scenarioName || incident?.id;
   const incidentMessage = incident?.message || incident?.impact || 'Incident details pending triage.';
 
@@ -115,7 +116,7 @@ const Dashboard = ({
               </div>
               <div>
                 <dt>Alerts</dt>
-                <dd>{incidentAlertCount || '—'}</dd>
+                <dd>{incidentAlertCount ?? '—'}</dd>
               </div>
             </dl>
             <div className="incident-actions">
