@@ -491,6 +491,7 @@ export const attackScenarios = [
     name: 'Supply-chain package hijack',
     riskScore: 92,
     type: 'Critical',
+    pipeline: 'edge-security',
     description: 'Malicious dependency injected via compromised maintainer, attempting to exfiltrate secrets.',
     detections: ['Dependency Sentinel', 'Artifact Hardening', 'Immutable Ledger'],
     mitigation: 'Package quarantined, runner token revoked, maintainers notified.'
@@ -500,6 +501,7 @@ export const attackScenarios = [
     name: 'Secrets leakage in build logs',
     riskScore: 78,
     type: 'High',
+    pipeline: 'frontend-ci',
     description: 'Access token printed to logs during integration tests, risking unauthorized deployments.',
     detections: ['Source Integrity', 'Log Sanitization'],
     mitigation: 'Credential revoked, log scrub pipeline engaged, Jira incident created.'
@@ -509,6 +511,7 @@ export const attackScenarios = [
     name: 'Untrusted self-hosted runner',
     riskScore: 84,
     type: 'High',
+    pipeline: 'payments-cd',
     description: 'CI runner launched from unfamiliar IP range with outdated kernel patches.',
     detections: ['Runner Verification', 'Behavioral AI'],
     mitigation: 'Runner isolated, MFA re-challenge enforced, SOC escalation triggered.'

@@ -4,6 +4,7 @@ import RiskBadge from '../components/RiskBadge';
 import AlertsTable from '../components/AlertsTable';
 import ImpactMetrics from '../components/ImpactMetrics.jsx';
 import SecurityHighlights from '../components/SecurityHighlights.jsx';
+import { formatDateTime } from '../utils/dateHelpers';
 
 const Dashboard = ({
   pipelines = [],
@@ -12,9 +13,13 @@ const Dashboard = ({
   impactMetrics = {},
   authSession,
   securityHighlights = [],
+  integrations = [],
+  latestIncident,
   onRunAction,
   onAlertAction,
-  onSelectPipeline
+  onSelectPipeline,
+  onViewAlerts,
+  onManageIntegrations
 }) => {
   const allRuns = useMemo(() => Object.values(runsByPipeline).flat(), [runsByPipeline]);
   const highestRiskRun = useMemo(() => [...allRuns].sort((a, b) => (b.risk?.score || 0) - (a.risk?.score || 0))[0], [allRuns]);
@@ -23,6 +28,26 @@ const Dashboard = ({
   );
 
   const topPipelines = pipelines.slice(0, 3);
+  const githubIntegration = useMemo(
+    () => integrations.find((integration) => integration.id === 'github'),
+    [integrations]
+  );
+
+  const prioritizedAlert = useMemo(() => {
+    if (!alerts.length) return null;
+    const severityOrder = { Critical: 4, High: 3, Medium: 2, Low: 1 };
+    return [...alerts]
+      .sort((a, b) => (severityOrder[b.severity] || 0) - (severityOrder[a.severity] || 0))
+      .shift();
+  }, [alerts]);
+
+  const incident = latestIncident || prioritizedAlert;
+  const incidentSeverity = incident?.severity
+    || (incident?.riskScore >= 90 ? 'Critical' : incident?.riskScore >= 75 ? 'High' : incident?.riskScore >= 50 ? 'Medium' : 'Low');
+  const incidentTimestamp = incident?.timestamp || incident?.createdAt || null;
+  const incidentAlertCount = incident?.alerts ?? (incident === prioritizedAlert ? 1 : alerts.length || 0);
+  const incidentTitle = incident?.title || incident?.scenarioName || incident?.id;
+  const incidentMessage = incident?.message || incident?.impact || 'Incident details pending triage.';
 
   return (
     <div className="grid dashboard-grid">
@@ -62,6 +87,51 @@ const Dashboard = ({
         </div>
       </section>
 
+      {incident && (
+        <section className={`card span-2 latest-incident-card severity-${incidentSeverity.toLowerCase()}`}>
+          <header className="card-header">
+            <div>
+              <h2>{latestIncident ? 'Latest simulated incident' : 'Priority alert'}</h2>
+              <p className="muted">
+                {incident?.pipelineId ? `${incident.pipelineId} · ` : ''}
+                {incidentTimestamp ? formatDateTime(incidentTimestamp) : 'Detected recently'}
+              </p>
+            </div>
+            <RiskBadge score={incident.riskScore} level={incidentSeverity} />
+          </header>
+          <div className="incident-body">
+            <div className="incident-primary">
+              <h3>{incidentTitle}</h3>
+              <p className="muted">{incidentMessage}</p>
+            </div>
+            <dl className="incident-meta">
+              <div>
+                <dt>Incident id</dt>
+                <dd>{incident.id}</dd>
+              </div>
+              <div>
+                <dt>Severity</dt>
+                <dd>{incidentSeverity}</dd>
+              </div>
+              <div>
+                <dt>Alerts</dt>
+                <dd>{incidentAlertCount || '—'}</dd>
+              </div>
+            </dl>
+            <div className="incident-actions">
+              <button type="button" className="btn-outline" onClick={() => onViewAlerts?.()}>
+                View alerts
+              </button>
+              {incident.pipelineId && (
+                <button type="button" className="btn-link" onClick={() => onSelectPipeline?.(incident.pipelineId)}>
+                  Inspect pipeline →
+                </button>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
+
       <section className="card span-2">
         <header className="card-header">
           <h2>Top watch pipelines</h2>
@@ -83,6 +153,38 @@ const Dashboard = ({
           ))}
         </div>
       </section>
+
+      {githubIntegration && (
+        <section className="card integration-card">
+          <header className="card-header">
+            <div>
+              <h3>GitHub integration</h3>
+              <p className="muted">{githubIntegration.critical ? 'Critical connector' : 'Optional integration'}</p>
+            </div>
+            <span className={`badge ${githubIntegration.status === 'Connected' ? 'badge-success' : 'badge-idle'}`}>
+              {githubIntegration.status}
+            </span>
+          </header>
+          <dl className="integration-meta">
+            <div>
+              <dt>Last sync</dt>
+              <dd>{githubIntegration.lastSync ? formatDateTime(githubIntegration.lastSync) : 'Never'}</dd>
+            </div>
+            <div>
+              <dt>Scopes</dt>
+              <dd>{githubIntegration.scopes?.join(', ') || '—'}</dd>
+            </div>
+            <div>
+              <dt>Org coverage</dt>
+              <dd>{authSession?.organization || 'Not specified'}</dd>
+            </div>
+          </dl>
+          <p className="muted">Manage GitHub credentials or rotate tokens from the GitHub Connect workspace.</p>
+          <button type="button" className="btn-outline" onClick={() => onManageIntegrations?.()}>
+            Review integrations
+          </button>
+        </section>
+      )}
 
       {highestRiskRun && (
         <RunCard run={highestRiskRun} onAction={onRunAction} />

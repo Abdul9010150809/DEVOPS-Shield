@@ -24,13 +24,14 @@ const eventTemplates = {
   ]
 };
 
-const Simulation = ({ scenarios = [], history = [] }) => {
+const Simulation = ({ scenarios = [], history = [], onIncident }) => {
   const [riskHistory, setRiskHistory] = useState(history);
   const [activeScenarioId, setActiveScenarioId] = useState(null);
   const [events, setEvents] = useState([]);
   const [loadingScenario, setLoadingScenario] = useState(false);
   const [backendStatus, setBackendStatus] = useState('checking');
   const [lastRunAt, setLastRunAt] = useState(null);
+  const [incidentSummary, setIncidentSummary] = useState(null);
 
   const activeScenario = useMemo(
     () => scenarios.find((scenario) => scenario.id === activeScenarioId) || null,
@@ -42,6 +43,7 @@ const Simulation = ({ scenarios = [], history = [] }) => {
     setActiveScenarioId(scenario.id);
     setEvents([]);
     setBackendStatus('checking');
+    setIncidentSummary(null);
 
     const timeline = [];
     const addEvent = (phase, detail, timestamp = new Date()) => {
@@ -263,6 +265,20 @@ const Simulation = ({ scenarios = [], history = [] }) => {
       setRiskHistory((prev) => [...prev, riskPoint]);
       setLastRunAt(new Date().toISOString());
       setLoadingScenario(false);
+
+      const incident = {
+        id: `SIM-${(fraudEvent?.event_id || randomHex(6)).toString().toUpperCase()}`,
+        scenarioId: scenario.id,
+        scenarioName: scenario.name,
+        pipelineId: scenario.pipeline || 'global-secops',
+        riskScore: Math.round(normalizedRisk * 100),
+        alerts: riskPoint.alerts,
+        timestamp: new Date().toISOString(),
+        message: timeline[0]?.detail || scenario.description
+      };
+
+      setIncidentSummary(incident);
+      onIncident?.(incident);
     }
   };
 
@@ -271,6 +287,7 @@ const Simulation = ({ scenarios = [], history = [] }) => {
     setEvents([]);
     setLastRunAt(null);
     setBackendStatus('checking');
+    setIncidentSummary(null);
   };
 
   return (
@@ -353,6 +370,41 @@ const Simulation = ({ scenarios = [], history = [] }) => {
           )}
         </aside>
       </section>
+
+      {incidentSummary && (
+        <section className="card simulation-incident">
+          <header className="card-header">
+            <div>
+              <h3>Latest simulated incident</h3>
+              <p className="muted">Alert broadcast to responders and surfaced in the incident queue.</p>
+            </div>
+            <RiskBadge score={incidentSummary.riskScore} level={activeScenario?.type} />
+          </header>
+          <dl className="incident-grid">
+            <div>
+              <dt>Incident id</dt>
+              <dd>{incidentSummary.id}</dd>
+            </div>
+            <div>
+              <dt>Pipeline</dt>
+              <dd>{incidentSummary.pipelineId}</dd>
+            </div>
+            <div>
+              <dt>Risk</dt>
+              <dd>{incidentSummary.riskScore}%</dd>
+            </div>
+            <div>
+              <dt>Alerts generated</dt>
+              <dd>{incidentSummary.alerts}</dd>
+            </div>
+            <div>
+              <dt>Detected at</dt>
+              <dd>{formatDateTime(incidentSummary.timestamp)}</dd>
+            </div>
+          </dl>
+          <p className="muted">{incidentSummary.message}</p>
+        </section>
+      )}
 
       <section className="card simulation-events">
         <header className="card-header">

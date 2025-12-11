@@ -7,6 +7,7 @@ import AuditPage from './pages/Audit.jsx';
 import SettingsPage from './pages/Settings.jsx';
 import ImpactPage from './pages/Impact.jsx';
 import SimulationPage from './pages/Simulation.jsx';
+import GitHubConnect from './pages/GitHubConnect.jsx';
 import AuthBanner from './components/AuthBanner.jsx';
 import {
   pipelines as pipelineData,
@@ -29,16 +30,18 @@ const VIEWS = {
   AUDIT: 'audit',
   SETTINGS: 'settings',
   IMPACT: 'impact',
-  SIMULATION: 'simulation'
+  SIMULATION: 'simulation',
+  GITHUB: 'github'
 };
 
 const navItems = [
   { id: VIEWS.DASHBOARD, label: 'Dashboard' },
   { id: VIEWS.PIPELINES, label: 'Pipelines' },
   { id: VIEWS.ALERTS, label: 'Alerts' },
-   { id: VIEWS.SIMULATION, label: 'Attack Simulation' },
+  { id: VIEWS.SIMULATION, label: 'Attack Simulation' },
   { id: VIEWS.AUDIT, label: 'Audit' },
   { id: VIEWS.SETTINGS, label: 'Settings' },
+  { id: VIEWS.GITHUB, label: 'GitHub Connect' },
   { id: VIEWS.IMPACT, label: 'Societal Impact' }
 ];
 
@@ -47,6 +50,10 @@ const App = () => {
   const [activePipelineId, setActivePipelineId] = useState(pipelineData[0]?.id);
   const defaultRunId = runsData[pipelineData[0]?.id]?.[0]?.runId;
   const [activeRunId, setActiveRunId] = useState(defaultRunId);
+  const [alertsState, setAlertsState] = useState(alertData);
+  const [authState, setAuthState] = useState(authSession);
+  const [integrationsState, setIntegrationsState] = useState(integrations);
+  const [latestIncident, setLatestIncident] = useState(null);
 
   const onSelectPipeline = (pipelineId) => {
     setActivePipelineId(pipelineId);
@@ -73,10 +80,76 @@ const App = () => {
 
   const onReconnect = (provider) => {
     console.info('Re-authenticate provider', provider);
+    const now = new Date().toISOString();
+    setAuthState((prev) => ({
+      ...prev,
+      status: 'Connected',
+      lastVerification: now
+    }));
+    setIntegrationsState((prev) => prev.map((integration) => (
+      integration.id === 'github'
+        ? { ...integration, status: 'Connected', lastSync: now }
+        : integration
+    )));
+  };
+
+  const handleGitHubDisconnect = () => {
+    const now = new Date().toISOString();
+    setAuthState((prev) => ({
+      ...prev,
+      status: 'Disconnected',
+      lastVerification: now,
+      scopes: prev.scopes || []
+    }));
+    setIntegrationsState((prev) => prev.map((integration) => (
+      integration.id === 'github'
+        ? { ...integration, status: 'Disconnected', lastSync: now }
+        : integration
+    )));
+  };
+
+  const handleGitHubConnect = ({ username, scopes, org }) => {
+    const now = new Date().toISOString();
+    setAuthState((prev) => ({
+      ...prev,
+      status: 'Connected',
+      account: username || prev.account,
+      scopes: scopes?.length ? scopes : prev.scopes,
+      organization: org || prev.organization,
+      lastVerification: now
+    }));
+    setIntegrationsState((prev) => prev.map((integration) => (
+      integration.id === 'github'
+        ? {
+            ...integration,
+            status: 'Connected',
+            lastSync: now,
+            scopes: scopes?.length ? scopes : integration.scopes
+          }
+        : integration
+    )));
   };
 
   const onDisconnect = (provider) => {
     console.info('Disconnect provider', provider);
+    handleGitHubDisconnect();
+  };
+
+  const handleSimulationIncident = (incident) => {
+    const severity = incident.riskScore >= 90 ? 'Critical' : incident.riskScore >= 75 ? 'High' : 'Medium';
+    const newAlert = {
+      id: incident.id.toLowerCase(),
+      pipelineId: incident.pipelineId,
+      title: `Simulated ${incident.scenarioName}`,
+      severity,
+      createdAt: incident.timestamp,
+      status: 'Open',
+      riskScore: incident.riskScore,
+      impact: incident.message || 'Automated drill impact pending review'
+    };
+
+    setAlertsState((prev) => [newAlert, ...prev]);
+    setLatestIncident({ ...incident, severity });
   };
 
   let content;
@@ -86,13 +159,17 @@ const App = () => {
         <Dashboard
           pipelines={pipelineData}
           runsByPipeline={runsData}
-          alerts={alertData}
+          alerts={alertsState}
           impactMetrics={impactMetrics}
-          authSession={authSession}
+          authSession={authState}
           securityHighlights={securityHighlights}
+          integrations={integrationsState}
+          latestIncident={latestIncident}
           onSelectPipeline={onSelectPipeline}
           onRunAction={onRunAction}
           onAlertAction={onAlertAction}
+          onViewAlerts={() => setView(VIEWS.ALERTS)}
+          onManageIntegrations={() => setView(VIEWS.GITHUB)}
         />
       );
       break;
@@ -110,7 +187,7 @@ const App = () => {
       );
       break;
     case VIEWS.ALERTS:
-      content = <AlertsPage alerts={alertData} onAction={onAlertAction} />;
+      content = <AlertsPage alerts={alertsState} onAction={onAlertAction} />;
       break;
     case VIEWS.AUDIT:
       content = <AuditPage records={auditRecords} onExport={onExport} />;
@@ -118,9 +195,9 @@ const App = () => {
     case VIEWS.SETTINGS:
       content = (
         <SettingsPage
-          integrations={integrations}
+          integrations={integrationsState}
           policies={policyControls}
-          authSession={authSession}
+          authSession={authState}
           securityHighlights={securityHighlights}
         />
       );
@@ -133,6 +210,16 @@ const App = () => {
         <SimulationPage
           scenarios={attackScenarios}
           history={simulationRiskHistory}
+          onIncident={handleSimulationIncident}
+        />
+      );
+      break;
+    case VIEWS.GITHUB:
+      content = (
+        <GitHubConnect
+          authSession={authState}
+          onConnect={handleGitHubConnect}
+          onDisconnect={handleGitHubDisconnect}
         />
       );
       break;
@@ -161,7 +248,7 @@ const App = () => {
         </div>
       </aside>
       <main className="shell-content">
-        <AuthBanner session={authSession} onReconnect={onReconnect} onDisconnect={onDisconnect} />
+        <AuthBanner session={authState} onReconnect={onReconnect} onDisconnect={onDisconnect} />
         <header className="content-header">
           <div>
             <h1>{navItems.find((item) => item.id === view)?.label}</h1>
@@ -169,9 +256,20 @@ const App = () => {
           </div>
           <div className="header-actions">
             <button type="button" className="btn-outline" onClick={() => setView(VIEWS.SIMULATION)}>Simulate attack</button>
-            <button type="button" className="btn-primary" onClick={() => setView(VIEWS.PIPELINES)}>View pipelines</button>
+            <button type="button" className="btn-primary" onClick={() => setView(VIEWS.GITHUB)}>Connect GitHub</button>
           </div>
         </header>
+        {latestIncident && (
+          <section className={`card incident-banner ${latestIncident.severity?.toLowerCase()}`}>
+            <div>
+              <strong>{latestIncident.severity} alert · {latestIncident.id}</strong>
+              <p className="muted">Risk {latestIncident.riskScore}% on {latestIncident.pipelineId}. {latestIncident.message}</p>
+            </div>
+            <div className="incident-banner-actions">
+              <button type="button" className="btn-outline" onClick={() => setView(VIEWS.ALERTS)}>Open alerts</button>
+            </div>
+          </section>
+        )}
         <div className="content-body">
           {content}
         </div>
