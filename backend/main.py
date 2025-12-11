@@ -45,9 +45,11 @@ app = FastAPI(title="DevOps Fraud Shield API", version="1.0.0")
 
 # ------- Security Middleware -------
 # Add trusted host middleware
+default_allowed_hosts = "localhost,127.0.0.1,*.onrender.com"
+allowed_hosts = [host.strip() for host in os.getenv("ALLOWED_HOSTS", default_allowed_hosts).split(",") if host.strip()]
 app.add_middleware(
     TrustedHostMiddleware,
-    allowed_hosts=os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
+    allowed_hosts=allowed_hosts
 )
 
 # Add security headers middleware (if available)
@@ -66,7 +68,7 @@ except Exception as e:
     print(f"Warning: Rate limiting middleware failed: {e}")
 
 # ------- CORS (Restricted) -------
-allowed_origins = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
+allowed_origins = [origin.strip() for origin in os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",") if origin.strip()]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,

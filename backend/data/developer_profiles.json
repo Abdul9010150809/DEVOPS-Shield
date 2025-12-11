@@ -60,5 +60,44 @@
       }
     ],
     "risk_score": 0.0
+  },
+  "contractor-447": {
+    "baseline": {
+      "avg_commit_size": 0.0,
+      "avg_files_changed": 0.0,
+      "typical_hours": "{21, 22}",
+      "common_file_types": "set()",
+      "commit_frequency": 0,
+      "last_commit_time": null,
+      "trusted_devices": "{'runner-12f'}",
+      "trusted_ips": "{'185.44.12.9'}"
+    },
+    "history": [
+      {
+        "commit_sha": "131f29e23b1944efe8b77ffa97ddfd5f9e8226cf",
+        "timestamp": 1765469774.068857,
+        "files_changed": [],
+        "lines_added": 0,
+        "lines_deleted": 0,
+        "content": {}
+      },
+      {
+        "commit_sha": "165c09c06a130b416b277876d5d3b6f8c1decd7e",
+        "timestamp": 1765470806.723314,
+        "files_changed": [],
+        "lines_added": 0,
+        "lines_deleted": 0,
+        "content": {}
+      },
+      {
+        "commit_sha": "01ba343fd86deb85717601363571fddf84c2981b",
+        "timestamp": 1765471122.652838,
+        "files_changed": [],
+        "lines_added": 0,
+        "lines_deleted": 0,
+        "content": {}
+      }
+    ],
+    "risk_score": 0.0
   }
 }

@@ -129,6 +129,12 @@ DEVOPS-Shield is an **enterprise-grade, AI-powered cybersecurity platform** desi
 - **Compliance Reporting**: Audit trail exports for regulatory bodies
 - **Dark Mode Interface**: Eye-friendly, modern UI design
 
+#### 🕹️ **Attack Simulation Cyber-Range**
+- **Interactive Drill Launcher**: Trigger controlled supply-chain, secret-leak, and rogue-runner incidents to watch defensive controls activate in real time.
+- **Immersive Timeline View**: Animated attack phases, detailed logs, blockchain ledger confirmations, dependency verdicts, and identity checks rendered chronologically for fast triage.
+- **Guided Scenario Sidebar**: Scenario cards surface threat levels, detections, and mitigation steps so operators know what defenses to validate next.
+- **Live Risk Telemetry**: Continuously updated risk graphs, badges, and incident summaries translate complex telemetry into an intuitive security dashboard experience inspired by Splunk, GitHub Actions, and Snyk.
+
 ---
 
 ## ✨ Feature Comparison: DEVOPS-Shield vs Competitors
@@ -513,6 +519,27 @@ Frontend:  http://localhost:3000
 API Docs:  http://localhost:8000/docs
 Backend:   http://localhost:8000
 ```
+
+## ☁️ Deploying on Render
+
+This repository includes a `render.yaml` blueprint so you can spin up both the FastAPI backend and the React frontend on Render with a single Blueprint deploy.
+
+1. **Push your latest branch** to GitHub (Render syncs from the remote repository).
+2. **Create a Render Blueprint** and point it at this repo. The preview will list two services defined in `render.yaml`:
+  - `devops-shield-backend` (Python web service). Installs `backend/requirements.txt`, mounts a 1 GB persistent disk at `/var/data`, and starts Uvicorn bound to the platform `$PORT`.
+  - `devops-shield-frontend` (static React site). Runs `npm install && npm run build` inside `frontend/` and publishes `frontend/build`.
+3. **Review environment variables** before provisioning:
+  - `ALLOWED_HOSTS` defaults to `localhost,127.0.0.1,*.onrender.com`, matching the FastAPI `TrustedHostMiddleware` update.
+  - `CORS_ORIGINS` defaults to `https://devops-shield-frontend.onrender.com,http://localhost:3000`; adjust if you rename the static site.
+  - `NODE_VERSION` pins the frontend build to Node 18 so Render uses a predictable toolchain.
+  - `REACT_APP_API_BASE_URL` should reference the backend URL Render assigns (update after the first deploy if needed).
+4. **Launch the blueprint.** The backend will populate `/var/data/fraud_logs.db` on the attached disk, preserving drills and alerts across redeploys, while the frontend immediately serves the built dashboard against the Render-hosted API.
+
+### Render Troubleshooting
+
+- `400 Invalid host header` → add your Render hostname to `ALLOWED_HOSTS` or use `*` temporarily.
+- Secret rotation (Slack, GitLab, etc.) happens through Render’s dashboard—no code changes required.
+- The SQLite file lives on the `fraud-logs` disk. Remove or resize the disk in Render if you need to reset state.
 
 ### Generate Training Data
 ```bash
