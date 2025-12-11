@@ -1,8 +1,10 @@
-const API_URL = process.env.REACT_APP_API_URL;
+// Use environment variable or default to localhost:8000
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
 class ApiClient {
   constructor() {
     this.baseURL = API_URL;
+    console.log('[API Client] Initialized with base URL:', this.baseURL);
   }
 
   async get(endpoint) {
@@ -17,7 +19,9 @@ class ApiClient {
   }
 
   async request(endpoint, options = {}) {
-    const url = `${this.baseURL}${endpoint}`;
+    // Ensure endpoint starts with /
+    const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+    const url = `${this.baseURL}${cleanEndpoint}`;
 
     const config = {
       ...options,
@@ -27,13 +31,19 @@ class ApiClient {
       },
     };
 
-    const response = await fetch(url, config);
+    try {
+      const response = await fetch(url, config);
 
-    if (!response.ok) {
-      throw new Error(`HTTP error: ${response.status}`);
+      if (!response.ok) {
+        const errorBody = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorBody || response.statusText}`);
+      }
+
+      return response.json();
+    } catch (error) {
+      console.error(`[API Error] ${url}:`, error.message);
+      throw error;
     }
-
-    return response.json();
   }
 
   async getFraudStats() {

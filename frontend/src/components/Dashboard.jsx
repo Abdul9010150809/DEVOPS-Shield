@@ -25,15 +25,19 @@ const Dashboard = () => {
     setLoading(true);
     try {
       const statsData = await fraudController.getFraudStats();
-      // Only overwrite if API returns valid numbers, else keep defaults
-      if(statsData && statsData.total_analyses !== undefined) {
-         setStats(statsData.data || statsData);
+      console.log('[Dashboard] Stats received:', statsData);
+      
+      // Extract stats from response
+      const statsToUse = statsData?.data || statsData;
+      if(statsToUse && (statsToUse.total_analyses !== undefined || statsToUse.average_risk_score !== undefined)) {
+         setStats(statsToUse);
       }
       
       const alertsRes = await alertsController.getRecentAlerts(5);
-      setRecentAlerts(alertsRes.alerts || []);
+      setRecentAlerts(alertsRes?.alerts || []);
     } catch (error) {
       console.warn("API Error (Using Fallback):", error);
+      // Keep using default stats from state
     } finally {
       setLastUpdated(new Date());
       setLoading(false);
@@ -47,44 +51,69 @@ const Dashboard = () => {
 
       // 1. Call API
       const res = await simulateController.simulateFraud();
-      const responseData = res.data || res; // Handle varying response structures
+      console.log('[Simulation] Full response:', res);
+      
+      // Handle different response structures
+      const fraudEvent = res?.fraud_event || res?.data?.fraud_event || res;
+      console.log('[Simulation] Extracted fraud event:', fraudEvent);
 
-      if (!responseData.fraud_event) throw new Error("Missing fraud_event data");
+      if (!fraudEvent || !fraudEvent.event_id) {
+        throw new Error("Invalid fraud event data: " + JSON.stringify(fraudEvent));
+      }
 
-      // 2. Update UI Log
-      setSimulationLog(responseData.fraud_event);
+      // 2. Update UI Log with actual event data
+      setSimulationLog({
+        event_id: fraudEvent.event_id,
+        timestamp: fraudEvent.timestamp || new Date().toISOString(),
+        risk_score: fraudEvent.risk_score || 0.85,
+        message: fraudEvent.message || "Simulated fraudulent activity detected",
+        activity: fraudEvent.activity || {
+          commit_id: "unknown",
+          author: "unknown_user",
+          changes_detected: [],
+          flags: []
+        }
+      });
 
-      // 3. [IMPORTANT] Manually update Stats for the Demo
-      // Since backend is stateless, we force the numbers up locally
+      // 3. Update Stats based on risk score
+      const riskScore = fraudEvent.risk_score || 0.85;
       setStats(prev => ({
         ...prev,
         active_alerts: prev.active_alerts + 1,
-        high_risk_analyses: prev.high_risk_analyses + 1,
+        high_risk_analyses: riskScore >= 0.7 ? prev.high_risk_analyses + 1 : prev.high_risk_analyses,
         total_analyses: prev.total_analyses + 1,
-        average_risk_score: 0.85 // Spike the risk score
+        average_risk_score: ((prev.average_risk_score * (prev.total_analyses - 1)) + riskScore) / prev.total_analyses
       }));
 
-      // 4. Add new alert to the list locally
+      // 4. Create alert from fraud event data
       const newAlert = {
-        id: responseData.fraud_event.event_id,
-        type: "simulated_attack",
-        severity: "critical",
-        message: "Simulated Fraud Event Detected",
-        repository: "demo-repo",
+        id: `alert-${fraudEvent.event_id}`,
+        type: "fraud_detected",
+        severity: riskScore >= 0.8 ? "critical" : riskScore >= 0.5 ? "high" : "medium",
+        message: fraudEvent.message || "Simulated Fraud Event Detected",
+        repository: fraudEvent.activity?.commit_id || "demo-repo",
+        risk_score: riskScore,
+        event_id: fraudEvent.event_id,
         created_at: Date.now() / 1000,
-        resolved: false
+        resolved: false,
+        details: fraudEvent.activity
       };
 
+      // 5. Save to localStorage
       const existingSims = JSON.parse(localStorage.getItem('simulatedAlerts') || '[]');
-    localStorage.setItem('simulatedAlerts', JSON.stringify([newAlert, ...existingSims]));
+      localStorage.setItem('simulatedAlerts', JSON.stringify([newAlert, ...existingSims].slice(0, 50)));
     
+      // 6. Update alerts list
       setRecentAlerts(prev => [newAlert, ...prev].slice(0, 5));
 
-      setNotification({ type: 'success', message: '🚨 Fraud Event Detected!' });
+      setNotification({ 
+        type: 'success', 
+        message: `🚨 Event #${fraudEvent.event_id} - Risk: ${(riskScore * 100).toFixed(0)}%` 
+      });
 
     } catch (err) {
       console.error("Simulation failed:", err);
-      setNotification({ type: 'error', message: 'Simulation Failed. Check Console.' });
+      setNotification({ type: 'error', message: 'Simulation Error: ' + err.message });
     }
   };
 

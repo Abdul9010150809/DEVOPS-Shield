@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import pipelineController from '../api/pipelineController';
 
 const PipelineMonitor = () => {
   const [pipelines, setPipelines] = useState([]);
@@ -10,93 +9,18 @@ const PipelineMonitor = () => {
     successRate: 0,
     avgDuration: 0,
     activeBuilds: 0
-  });
-  const [lastUpdate, setLastUpdate] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
 
-  // Fetch real pipeline data from backend
-  const fetchPipelineData = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await pipelineController.getPipelines(12);
-      console.log('[PipelineMonitor] Fetched data:', data);
-      
-      const pipelineList = data?.pipelines || data || [];
-      setPipelines(pipelineList);
-      setLastUpdate(new Date());
-
-      // Calculate metrics from real data
-      const totalPipelines = pipelineList.length;
-      const successCount = pipelineList.filter(p => p.status === 'success').length;
-      const successRate = totalPipelines > 0 ? ((successCount / totalPipelines) * 100).toFixed(1) : 0;
-      const activeBuilds = pipelineList.filter(p => p.status === 'running').length;
-      const avgDuration = data?.metrics?.avg_duration_minutes ? `${data.metrics.avg_duration_minutes}m` : '6m 28s';
-
-      setMetrics({ 
-        totalPipelines, 
-        successRate, 
-        avgDuration, 
-        activeBuilds,
-        total: data?.metrics?.total || totalPipelines,
-        failed: data?.metrics?.failed || 0
-      });
-    } catch (err) {
-      console.error('[PipelineMonitor] Error fetching pipelines:', err);
-      setError(err.message);
-      // Fallback to empty state instead of mock data
-      setPipelines([]);
-    } finally {
-      setLoading(false);
-    }
+        {/* CSS Animation */}
+        <style>{`
+          @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.1); opacity: 0.8; }
+          }
+        `}</style>
+      </div>
+    );
   };
 
-  // Generate realistic logs
-  const generateLogs = (pipeline) => {
-    const logEntries = [
-      { time: '00:00', level: 'INFO', message: `Pipeline started for ${pipeline.branch}` },
-      { time: '00:01', level: 'INFO', message: `Checking out commit ${pipeline.commit}` },
-      { time: '00:12', level: 'SUCCESS', message: 'Repository cloned successfully' },
-      { time: '00:15', level: 'INFO', message: 'Installing dependencies...' },
-      { time: '01:00', level: 'SUCCESS', message: 'All dependencies installed' },
-      { time: '01:05', level: 'INFO', message: 'Running test suite...' },
-      { time: '01:43', level: 'SUCCESS', message: '✓ All tests passed (46/46)' },
-      { time: '01:48', level: 'INFO', message: 'Starting security scan...' },
-      { time: '02:14', level: 'INFO', message: 'Analyzing code for vulnerabilities...' }
-    ];
-
-    if (pipeline.status === 'running') {
-      logEntries.push({ time: '02:15', level: 'WARN', message: '⏳ Security scan in progress...' });
-    } else if (pipeline.status === 'failed') {
-      logEntries.push({ time: '05:12', level: 'ERROR', message: '❌ Deployment failed: Insufficient gas' });
-    }
-
-    setLogs(logEntries);
-  };
-
-  useEffect(() => {
-    fetchPipelineData();
-    const interval = setInterval(fetchPipelineData, 5000);
-    return () => clearInterval(interval);
-  }, []);
-
-  useEffect(() => {
-    if (selectedPipeline) {
-      generateLogs(selectedPipeline);
-    }
-  }, [selectedPipeline]);
-
-  const getStatusColor = (status) => {
-    const colors = {
-      success: '#10b981',
-      failed: '#ef4444',
-      running: '#3b82f6',
-      pending: '#6b7280',
-      skipped: '#9ca3af'
-    };
-    return colors[status] || '#6b7280';
-  };
 
   const getStatusIcon = (status) => {
     const icons = {
@@ -117,41 +41,6 @@ const PipelineMonitor = () => {
       color: '#e2e8f0',
       fontFamily: 'Inter, system-ui, sans-serif'
     }}>
-      
-      {/* Error State */}
-      {error && (
-        <div style={{
-          background: 'rgba(239, 68, 68, 0.15)',
-          border: '1px solid rgba(239, 68, 68, 0.5)',
-          padding: '16px',
-          borderRadius: '12px',
-          marginBottom: '20px',
-          color: '#fecaca'
-        }}>
-          ⚠️ Error loading pipelines: {error}
-          <button onClick={fetchPipelineData} style={{
-            marginLeft: '12px',
-            background: '#ef4444',
-            color: 'white',
-            border: 'none',
-            padding: '6px 12px',
-            borderRadius: '6px',
-            cursor: 'pointer'
-          }}>Retry</button>
-        </div>
-      )}
-
-      {/* Loading State */}
-      {loading && pipelines.length === 0 && (
-        <div style={{
-          textAlign: 'center',
-          padding: '40px',
-          color: '#94a3b8'
-        }}>
-          <div style={{ fontSize: '2rem', marginBottom: '12px' }}>🔄</div>
-          <p>Loading pipeline data...</p>
-        </div>
-      )}
       
       {/* Header with Metrics */}
       <div style={{
@@ -210,7 +99,9 @@ const PipelineMonitor = () => {
               border: '1px solid rgba(255, 255, 255, 0.1)',
               transition: 'transform 0.2s',
               cursor: 'pointer'
-            }}>
+            }}
+            onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-4px)'}
+            onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}>
               <div style={{ fontSize: '1.5rem', marginBottom: '8px' }}>{metric.icon}</div>
               <div style={{ fontSize: '0.75rem', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                 {metric.label}
@@ -236,21 +127,6 @@ const PipelineMonitor = () => {
         }}>
           <h2 style={{ margin: '0 0 20px 0', fontSize: '1.3rem', color: '#f1f5f9' }}>Recent Pipelines</h2>
           
-          {pipelines.length === 0 && !loading && (
-            <div style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>
-              <p>No pipelines available. Click refresh to load data.</p>
-              <button onClick={fetchPipelineData} style={{
-                background: '#3b82f6',
-                color: 'white',
-                border: 'none',
-                padding: '8px 16px',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                marginTop: '12px'
-              }}>🔄 Refresh Pipelines</button>
-            </div>
-          )}
-          
           {pipelines.map(pipeline => (
             <div key={pipeline.id}
               onClick={() => setSelectedPipeline(pipeline)}
@@ -266,6 +142,16 @@ const PipelineMonitor = () => {
                 cursor: 'pointer',
                 transition: 'all 0.3s ease',
                 transform: selectedPipeline?.id === pipeline.id ? 'scale(1.02)' : 'scale(1)'
+              }}
+              onMouseEnter={e => {
+                if (selectedPipeline?.id !== pipeline.id) {
+                  e.currentTarget.style.background = 'rgba(30, 41, 59, 0.8)';
+                }
+              }}
+              onMouseLeave={e => {
+                if (selectedPipeline?.id !== pipeline.id) {
+                  e.currentTarget.style.background = 'rgba(30, 41, 59, 0.6)';
+                }
               }}>
               
               {/* Pipeline Header */}
@@ -503,6 +389,151 @@ const PipelineMonitor = () => {
         @keyframes pulse {
           0%, 100% { transform: scale(1); opacity: 1; }
           50% { transform: scale(1.1); opacity: 0.8; }
+        }
+      `}</style>
+    return '⏹️';
+  );
+};
+
+export default PipelineMonitor;
+  };
+
+  const getStatusColor = (status) => {
+    if (status === 'success') return '#22c55e';
+    if (status === 'failed') return '#ef4444';
+    if (status === 'running') return '#3b82f6';
+    return '#64748b';
+  };
+
+  return (
+    <div style={{ padding: '20px', maxWidth: '1000px', margin: '0 auto' }}>
+      
+      <div style={styles.glassContainer}>
+        
+        {/* === HEADER === */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '16px' }}>
+          <div>
+            <h3 style={styles.headerText}>🔧 CI/CD Pipeline Monitor</h3>
+            <div style={{ color: '#94a3b8', fontSize: '0.85rem', marginTop: '6px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ width: '8px', height: '8px', background: '#22c55e', borderRadius: '50%', boxShadow: '0 0 8px #22c55e' }}></span>
+              Live Polling • Last update: {lastPoll ? lastPoll.toLocaleTimeString() : '--'}
+            </div>
+          </div>
+          
+          <div style={{ display: 'flex', gap: '15px' }}>
+             {/* Simple Stats */}
+             <div style={{ textAlign: 'center' }}>
+                <div style={{ fontWeight: 'bold', fontSize: '1.1rem', color: '#22c55e' }}>{pipelines.filter(p => p.status === 'success').length}</div>
+                <div style={{ fontSize: '0.7rem', color: '#64748b', textTransform: 'uppercase' }}>Passing</div>
+             </div>
+             <div style={{ textAlign: 'center' }}>
+                <div style={{ fontWeight: 'bold', fontSize: '1.1rem', color: '#3b82f6' }}>{pipelines.filter(p => p.status === 'running').length}</div>
+                <div style={{ fontSize: '0.7rem', color: '#64748b', textTransform: 'uppercase' }}>Active</div>
+             </div>
+             <div style={{ textAlign: 'center' }}>
+                <div style={{ fontWeight: 'bold', fontSize: '1.1rem', color: '#ef4444' }}>{pipelines.filter(p => p.status === 'failed').length}</div>
+                <div style={{ fontSize: '0.7rem', color: '#64748b', textTransform: 'uppercase' }}>Failed</div>
+             </div>
+          </div>
+        </div>
+
+        {/* === PIPELINES LIST === */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          {pipelines.map((p) => (
+            <div key={p.id} style={{
+              background: 'rgba(30, 41, 59, 0.4)',
+              border: `1px solid ${getStatusColor(p.status)}40`,
+              borderLeft: `4px solid ${getStatusColor(p.status)}`,
+              borderRadius: '12px',
+              padding: '20px',
+              position: 'relative',
+              transition: 'transform 0.2s',
+            }}>
+              
+              {/* Top Row: Info */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <h4 style={{ margin: 0, fontSize: '1.1rem', color: '#f1f5f9' }}>{p.name}</h4>
+                    <span style={{ 
+                      fontSize: '0.7rem', padding: '2px 8px', borderRadius: '10px', 
+                      background: 'rgba(255,255,255,0.1)', color: '#cbd5e1', border: '1px solid rgba(255,255,255,0.1)'
+                    }}>
+                      {p.branch}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: '6px', fontFamily: 'monospace' }}>
+                    #{p.id} • {p.commit} • by {p.author}
+                  </div>
+                </div>
+
+                <div style={{ textAlign: 'right' }}>
+                   <div style={{ 
+                     display: 'inline-flex', alignItems: 'center', gap: '6px',
+                     padding: '6px 12px', borderRadius: '20px',
+                     background: `${getStatusColor(p.status)}20`, color: getStatusColor(p.status),
+                     fontWeight: 'bold', fontSize: '0.8rem'
+                   }}>
+                     {p.status === 'running' && <span className="spinner" style={{ animation: 'spin 1s linear infinite' }}>⏳</span>}
+                     {p.status.toUpperCase()}
+                   </div>
+                   <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '4px' }}>
+                     ⏱️ {p.duration}
+                   </div>
+                </div>
+              </div>
+
+              {/* Visualization: Node Diagram */}
+              <div style={{ display: 'flex', alignItems: 'center', position: 'relative', padding: '0 10px' }}>
+                {p.stages.map((stage, idx) => (
+                  <React.Fragment key={idx}>
+                    
+                    {/* The Line (Connection) */}
+                    {idx > 0 && (
+                      <div style={{ 
+                        flex: 1, height: '2px', 
+                        background: p.stages[idx-1].status === 'success' ? '#22c55e' : '#334155',
+                        margin: '0 5px'
+                      }}></div>
+                    )}
+
+                    {/* The Node (Circle) */}
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' }}>
+                      <div style={styles.stageNode(stage.status)}>
+                        {stage.status === 'running' && (
+                          <div style={{
+                            position: 'absolute', top: '-4px', left: '-4px', right: '-4px', bottom: '-4px',
+                            borderRadius: '50%', border: '2px solid #3b82f6', opacity: 0.5,
+                            animation: 'ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite'
+                          }}></div>
+                        )}
+                      </div>
+                      
+                      {/* Stage Label */}
+                      <div style={{ 
+                        position: 'absolute', top: '20px', width: '80px', textAlign: 'center', 
+                        fontSize: '0.75rem', color: stage.status === 'skipped' ? '#475569' : '#cbd5e1', fontWeight: '500'
+                      }}>
+                        {stage.name}
+                      </div>
+                    </div>
+
+                  </React.Fragment>
+                ))}
+              </div>
+              
+              {/* Spacer for labels */}
+              <div style={{ height: '25px' }}></div>
+
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* CSS Animation Injection for "Ping" effect on running nodes */}
+      <style>{`
+        @keyframes ping {
+          75%, 100% { transform: scale(2); opacity: 0; }
         }
       `}</style>
     </div>
