@@ -26,20 +26,20 @@ services:
         value: https://sepolia.infura.io/v3/YOUR_INFURA_KEY
       - key: BLOCKCHAIN_PRIVATE_KEY
         sync: false
-    disks:
-      - name: fraud-logs
-        mountPath: /var/data
-        sizeGB: 1
+    disk:
+      name: fraud-logs
+      mountPath: /var/data
+      sizeGB: 1
 
   - type: web
     name: devops-shield-frontend
     env: static
-    plan: free
     buildCommand: |
       cd frontend
       npm install
       npm run build
     staticPublishPath: frontend/build
+    plan: free
     envVars:
       - key: NODE_VERSION
         value: "18"

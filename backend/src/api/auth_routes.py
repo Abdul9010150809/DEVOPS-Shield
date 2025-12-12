@@ -4,7 +4,7 @@ Login, registration, MFA, and token management endpoints
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import EmailStr
+
 from datetime import datetime
 from ..security.auth_manager import (
     auth_manager, TokenManager, UserRole, get_current_user,
@@ -19,7 +19,7 @@ router = APIRouter()
 # ===== AUTHENTICATION ENDPOINTS =====
 
 @router.post("/auth/register")
-async def register(username: str, email: EmailStr, password: str):
+async def register(username: str, email: str, password: str):
     """
     Register new user
     """
