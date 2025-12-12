@@ -17,7 +17,7 @@ services:
       - key: CORS_ORIGINS
         value: https://devops-shield-frontend.onrender.com,http://localhost:3000
       - key: DB_PATH
-        value: /var/data/fraud_logs.db
+        value: backend/database/fraud_logs.db
       - key: BLOCKCHAIN_ENABLED
         value: "false"
       - key: BLOCKCHAIN_NETWORK
@@ -26,10 +26,7 @@ services:
         value: https://sepolia.infura.io/v3/YOUR_INFURA_KEY
       - key: BLOCKCHAIN_PRIVATE_KEY
         sync: false
-    disk:
-      name: fraud-logs
-      mountPath: /var/data
-      sizeGB: 1
+
 
   - type: web
     name: devops-shield-frontend
