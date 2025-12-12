@@ -36,12 +36,23 @@ class BlockchainAuditService:
             provider_url: Web3 provider URL (e.g., Infura, Ganache)
             contract_address: Deployed smart contract address
         """
-        self.provider_url = provider_url or os.getenv("BLOCKCHAIN_PROVIDER_URL", "http://localhost:8545")
+        self.blockchain_enabled = os.getenv("BLOCKCHAIN_ENABLED", "false").lower() == "true"
+        env_provider = os.getenv("BLOCKCHAIN_PROVIDER_URL", "").strip()
+        self.provider_url = provider_url or (env_provider if env_provider else None)
         self.contract_address = contract_address or os.getenv("BLOCKCHAIN_CONTRACT_ADDRESS")
         self.private_key = os.getenv("BLOCKCHAIN_PRIVATE_KEY")
         
         # Initialize Web3
-        if not HAS_WEB3:
+        if not self.blockchain_enabled:
+            logger.info("Blockchain integration disabled; using local fallback storage")
+            self.provider_url = None
+            self.connected = False
+            self.w3 = None
+        elif not self.provider_url:
+            logger.info("Blockchain provider not configured; using local fallback storage")
+            self.connected = False
+            self.w3 = None
+        elif not HAS_WEB3:
             logger.warning("Web3 dependencies not installed; blockchain operations will use local fallback")
             self.connected = False
             self.w3 = None
@@ -54,7 +65,7 @@ class BlockchainAuditService:
                     logger.info(f"✅ Connected to blockchain at {self.provider_url}")
                     logger.info(f"Block number: {self.w3.eth.block_number}")
                 else:
-                    logger.warning(f"❌ Failed to connect to blockchain at {self.provider_url}")
+                    logger.info(f"Blockchain connection unavailable at {self.provider_url}; using local fallback storage")
                     
             except Exception as e:
                 logger.error(f"Blockchain initialization error: {e}")
