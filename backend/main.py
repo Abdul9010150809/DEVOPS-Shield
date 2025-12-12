@@ -1,12 +1,25 @@
+"""Application entrypoint for DevOps Fraud Shield."""
+
 print("=== Starting DevOps Fraud Shield Backend ===")
 print("Python path:", __file__)
 
+import os
+import sys
+from pathlib import Path
+
+from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 import uvicorn
-import os
-from dotenv import load_dotenv
+
+# Ensure /backend and /backend/src are always importable even if PYTHONPATH is missing
+_current_dir = Path(__file__).resolve().parent
+_src_dir = _current_dir / "src"
+for _candidate in (_current_dir, _src_dir):
+    _candidate_str = str(_candidate)
+    if _candidate_str not in sys.path:
+        sys.path.insert(0, _candidate_str)
 
 print("Basic imports completed")
 
