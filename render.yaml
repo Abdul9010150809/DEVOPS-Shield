@@ -2,7 +2,7 @@ services:
   - type: web
     name: devops-shield-backend
     env: python
-    plan: free
+    plan: starter
     buildCommand: |
       pip install --upgrade pip
       pip install -r backend/requirements.txt
@@ -27,13 +27,15 @@ services:
       - key: BLOCKCHAIN_PRIVATE_KEY
         sync: false
 
-  - type: static
+  - type: web
     name: devops-shield-frontend
+    env: static
+    plan: starter
     buildCommand: |
       cd frontend
       npm install
       npm run build
-    publishPath: frontend/build
+    staticPublishPath: frontend/build
     envVars:
       - key: NODE_VERSION
         value: "18"
