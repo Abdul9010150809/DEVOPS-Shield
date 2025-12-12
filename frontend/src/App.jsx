@@ -8,6 +8,7 @@ import SettingsPage from './pages/Settings.jsx';
 import ImpactPage from './pages/Impact.jsx';
 import SimulationPage from './pages/Simulation.jsx';
 import GitHubConnect from './pages/GitHubConnect.jsx';
+import BlockchainDashboard from './components/BlockchainDashboard.jsx';
 import AuthBanner from './components/AuthBanner.jsx';
 import {
   pipelines as pipelineData,
@@ -31,7 +32,8 @@ const VIEWS = {
   SETTINGS: 'settings',
   IMPACT: 'impact',
   SIMULATION: 'simulation',
-  GITHUB: 'github'
+  GITHUB: 'github',
+  BLOCKCHAIN: 'blockchain'
 };
 
 const navItems = [
@@ -39,6 +41,7 @@ const navItems = [
   { id: VIEWS.PIPELINES, label: 'Pipelines' },
   { id: VIEWS.ALERTS, label: 'Alerts' },
   { id: VIEWS.SIMULATION, label: 'Attack Simulation' },
+  { id: VIEWS.BLOCKCHAIN, label: 'Blockchain Audit' },
   { id: VIEWS.AUDIT, label: 'Audit' },
   { id: VIEWS.SETTINGS, label: 'Settings' },
   { id: VIEWS.GITHUB, label: 'GitHub Connect' },
@@ -262,6 +265,9 @@ const App = () => {
           onDisconnect={handleGitHubDisconnect}
         />
       );
+      break;
+    case VIEWS.BLOCKCHAIN:
+      content = <BlockchainDashboard />;
       break;
     default:
       content = null;

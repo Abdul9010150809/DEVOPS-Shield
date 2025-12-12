@@ -4,10 +4,13 @@ Enforce HTTPS, configure SSL/TLS, and add security headers
 """
 
 from fastapi import FastAPI
-# HTTPSMiddleware not available in this starlette version
 from starlette.middleware import Middleware
 from typing import List
 import ssl
+try:
+    from starlette.middleware.https import HTTPSRedirectMiddleware as HTTPSMiddleware
+except ImportError:
+    HTTPSMiddleware = None
 from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -84,11 +87,32 @@ def configure_https(app: FastAPI, cert_path: str = None, key_path: str = None,
     
     if redirect_http:
         # Redirect HTTP to HTTPS
-        from starlette.middleware.httpsredirect import HTTPSRedirectMiddleware
+        from starlette.middleware.base import BaseHTTPMiddleware
+        from starlette.requests import Request
+        from starlette.responses import RedirectResponse
+        
+        class HTTPSRedirectMiddleware(BaseHTTPMiddleware):
+            async def dispatch(self, request: Request, call_next):
+                if request.url.scheme == "http":
+                    url = request.url.replace(scheme="https")
+                    return RedirectResponse(url)
+                return await call_next(request)
+        
         app.add_middleware(HTTPSRedirectMiddleware)
     
     # Add HSTS middleware
-    app.add_middleware(HTTPSMiddleware, enforce_https_requests=True)
+    from starlette.middleware.base import BaseHTTPMiddleware
+    from starlette.requests import Request
+    from starlette.responses import Response
+    
+    class HTTPSMiddleware(BaseHTTPMiddleware):
+        async def dispatch(self, request: Request, call_next):
+            if request.url.scheme == "http" and request.headers.get("X-Forwarded-Proto") != "https":
+                url = request.url.replace(scheme="https")
+                return Response(status_code=301, headers={"Location": str(url)})
+            return await call_next(request)
+    
+    app.add_middleware(HTTPSMiddleware)
     
     logger.info("HTTPS configuration applied")
 

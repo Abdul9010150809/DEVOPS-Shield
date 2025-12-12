@@ -18,6 +18,16 @@ services:
         value: https://devops-shield-frontend.onrender.com,http://localhost:3000
       - key: DB_PATH
         value: /var/data/fraud_logs.db
+      - key: BLOCKCHAIN_ENABLED
+        value: "false"
+      - key: BLOCKCHAIN_NETWORK
+        value: "mainnet"
+      - key: BLOCKCHAIN_PROVIDER_URL
+        fromService:
+          type: pserv
+          name: blockchain-rpc
+          property: url
+        sync: false
     disks:
       - name: fraud-logs
         mountPath: /var/data

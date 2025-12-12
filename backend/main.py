@@ -142,6 +142,14 @@ try:
 except Exception as e:
     print("Zero Trust router error:", e)
 
+# ---- BLOCKCHAIN ROUTER ----
+try:
+    from src.api.blockchain_controller import router as blockchain_router
+    app.include_router(blockchain_router)
+    print("Blockchain router loaded successfully")
+except Exception as e:
+    print("Blockchain router error:", e)
+
 print("Routers loaded successfully")
 
 # ------- Base Routes -------
