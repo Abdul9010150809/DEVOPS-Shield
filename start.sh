@@ -8,5 +8,8 @@ elif [ -d ".venv" ]; then
   source .venv/bin/activate
 fi
 
+# Ensure backend sources are importable as "src"
+export PYTHONPATH="$(pwd)/backend:${PYTHONPATH:-}"
+
 # Launch FastAPI backend via Uvicorn
-exec uvicorn backend.main:app --host 0.0.0.0 --port "${PORT:-8000}"
+exec uvicorn backend.main:app --host 0.0.0.0 --port "${PORT:-8080}"
