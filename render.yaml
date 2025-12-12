@@ -27,16 +27,13 @@ services:
       - key: BLOCKCHAIN_PRIVATE_KEY
         sync: false
 
-
-  - type: web
+  - type: static
     name: devops-shield-frontend
-    env: static
     buildCommand: |
       cd frontend
       npm install
       npm run build
-    staticPublishPath: frontend/build
-    plan: free
+    publishPath: frontend/build
     envVars:
       - key: NODE_VERSION
         value: "18"
