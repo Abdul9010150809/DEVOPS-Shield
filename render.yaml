@@ -23,10 +23,8 @@ services:
       - key: BLOCKCHAIN_NETWORK
         value: "mainnet"
       - key: BLOCKCHAIN_PROVIDER_URL
-        fromService:
-          type: pserv
-          name: blockchain-rpc
-          property: url
+        value: https://sepolia.infura.io/v3/YOUR_INFURA_KEY
+      - key: BLOCKCHAIN_PRIVATE_KEY
         sync: false
     disks:
       - name: fraud-logs
