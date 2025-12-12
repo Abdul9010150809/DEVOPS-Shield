@@ -31,15 +31,17 @@ services:
         mountPath: /var/data
         sizeGB: 1
 
-  - type: static_site
+  - type: web
     name: devops-shield-frontend
+    env: static
+    plan: free
+    buildCommand: |
+      cd frontend
+      npm install
+      npm run build
+    staticPublishPath: frontend/build
     envVars:
       - key: NODE_VERSION
         value: "18"
       - key: REACT_APP_API_BASE_URL
         value: https://devops-shield-backend.onrender.com
-    buildCommand: |
-      cd frontend
-      npm install
-      npm run build
-    publishPath: frontend/build

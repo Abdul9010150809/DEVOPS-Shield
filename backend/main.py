@@ -61,8 +61,8 @@ if SecurityHeadersMiddleware:
 
 # ------- Rate Limiting Middleware -------
 try:
-    from src.middleware.rate_limiter import RateLimiterMiddleware
-    app.add_middleware(RateLimiterMiddleware)
+    from src.middleware.rate_limiter import RateLimitMiddleware
+    app.add_middleware(RateLimitMiddleware)
     print("✓ Rate limiting middleware loaded")
 except Exception as e:
     print(f"Warning: Rate limiting middleware failed: {e}")
