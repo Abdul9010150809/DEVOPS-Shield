@@ -3,7 +3,7 @@
     "baseline": {
       "avg_commit_size": 0.0,
       "avg_files_changed": 0.0,
-      "typical_hours": "{5}",
+      "typical_hours": "{8, 5}",
       "common_file_types": "set()",
       "commit_frequency": 0,
       "last_commit_time": null,
@@ -14,6 +14,14 @@
       {
         "commit_sha": "926944156e600e6bfd929e572aaeab46416015e1",
         "timestamp": 1765499132.1473,
+        "files_changed": [],
+        "lines_added": 0,
+        "lines_deleted": 0,
+        "content": {}
+      },
+      {
+        "commit_sha": "72ad2eea811e33ce73bac59ca96390caabb32298",
+        "timestamp": 1765507247.901933,
         "files_changed": [],
         "lines_added": 0,
         "lines_deleted": 0,
