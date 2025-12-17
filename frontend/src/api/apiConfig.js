@@ -5,14 +5,18 @@
 
 import axios from 'axios';
 
+const baseURL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+
 // Create axios instance with base configuration
 const api = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:8000',
+  baseURL,
   timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
   },
 });
+
+console.log('[API Config] Initialized with base URL:', baseURL);
 
 // Request interceptor
 api.interceptors.request.use(
@@ -22,9 +26,11 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    console.log('[API Request]', config.method?.toUpperCase(), config.url);
     return config;
   },
   (error) => {
+    console.error('[API Request Error]', error.message);
     return Promise.reject(error);
   }
 );
@@ -32,18 +38,20 @@ api.interceptors.request.use(
 // Response interceptor
 api.interceptors.response.use(
   (response) => {
+    console.log('[API Response]', response.status, response.config.url);
     return response;
   },
   (error) => {
     if (error.response) {
       // Server responded with error
-      console.error('API Error:', error.response.status, error.response.data);
+      console.error('[API Error Response]', error.response.status, error.response.statusText, error.response.data);
     } else if (error.request) {
       // Request made but no response
-      console.error('Network Error: No response from server');
+      console.error('[API Network Error] No response from server at', baseURL);
+      console.error('[Debug] Request:', error.request);
     } else {
       // Request setup error
-      console.error('Request Error:', error.message);
+      console.error('[API Request Setup Error]', error.message);
     }
     return Promise.reject(error);
   }

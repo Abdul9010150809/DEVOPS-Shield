@@ -6,6 +6,7 @@ print("Python path:", __file__)
 import os
 import sys
 from pathlib import Path
+from datetime import datetime, timezone
 
 from dotenv import load_dotenv
 from fastapi import FastAPI
@@ -168,11 +169,32 @@ print("Routers loaded successfully")
 # ------- Base Routes -------
 @app.get("/")
 async def root():
-    return {"message": "DevOps Fraud Shield API", "status": "running"}
+    return {
+        "message": "DevOps Fraud Shield API", 
+        "status": "running",
+        "version": "1.0.0",
+        "environment": os.getenv("ENVIRONMENT", "development")
+    }
 
 @app.get("/health")
 async def health_check():
-    return {"status": "healthy"}
+    """Comprehensive health check endpoint"""
+    try:
+        return {
+            "status": "healthy",
+            "service": "DevOps Shield Backend",
+            "version": "1.0.0",
+            "environment": os.getenv("ENVIRONMENT", "development"),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "cors_origins": allowed_origins,
+            "database": "operational"
+        }
+    except Exception as e:
+        logger.error(f"Health check failed: {e}")
+        return {
+            "status": "degraded",
+            "error": str(e)
+        }, 503
 
 # ------- Start Server -------
 if __name__ == "__main__":

@@ -70,6 +70,8 @@ railway.toml       Railway deploy configuration (start command & builder)
 
 ## Quick Start
 
+For detailed setup and deployment instructions, see [SETUP_GUIDE.md](SETUP_GUIDE.md).
+
 ### Prerequisites
 
 - Python 3.10+
