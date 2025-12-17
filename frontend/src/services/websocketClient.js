@@ -3,6 +3,21 @@
  * Connects to backend WebSocket for live pipeline updates and alerts
  */
 
+// Convert HTTP/HTTPS to WS/WSS for WebSocket URLs
+function getWebSocketURL(httpUrl = null) {
+  const apiUrl = httpUrl || process.env.REACT_APP_API_URL || 'http://localhost:8000';
+  
+  // Convert http -> ws, https -> wss
+  let wsUrl = apiUrl.replace(/^http:/, 'ws:').replace(/^https:/, 'wss:');
+  
+  // Ensure it ends with /ws
+  if (!wsUrl.endsWith('/ws')) {
+    wsUrl += '/ws';
+  }
+  
+  return wsUrl;
+}
+
 class WebSocketClient {
   constructor() {
     this.ws = null;
@@ -11,18 +26,22 @@ class WebSocketClient {
     this.reconnectDelay = 3000;
     this.listeners = new Map();
     this.isConnecting = false;
+    this.wsUrl = getWebSocketURL();
   }
 
-  connect(url = 'ws://localhost:8000/ws') {
+  connect(url = null) {
+    const connectUrl = url || this.wsUrl || getWebSocketURL();
+    
     if (this.isConnecting || (this.ws && this.ws.readyState === WebSocket.OPEN)) {
       console.log('WebSocket already connected or connecting');
       return;
     }
 
     this.isConnecting = true;
+    console.log('[WebSocket] Connecting to:', connectUrl);
 
     try {
-      this.ws = new WebSocket(url);
+      this.ws = new WebSocket(connectUrl);
 
       this.ws.onopen = () => {
         console.log('✅ WebSocket Connected');
@@ -53,25 +72,22 @@ class WebSocketClient {
         this.emit('error', error);
       };
 
-      this.ws.onclose = (event) => {
-        console.log('WebSocket Closed:', event.code, event.reason);
+      this.ws.onclose = () => {
+        console.log('❌ WebSocket Disconnected');
         this.isConnecting = false;
-        this.emit('disconnected', { code: event.code, reason: event.reason });
-        
+        this.emit('disconnected');
+
         // Attempt reconnection
         if (this.reconnectAttempts < this.maxReconnectAttempts) {
           this.reconnectAttempts++;
-          console.log(`Reconnecting... Attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts}`);
-          setTimeout(() => this.connect(url), this.reconnectDelay);
-        } else {
-          console.error('Max reconnection attempts reached');
-          this.emit('max_reconnect_reached');
+          console.log(`🔄 Reconnecting... (Attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
+          setTimeout(() => this.connect(connectUrl), this.reconnectDelay);
         }
       };
-
     } catch (error) {
       console.error('Failed to create WebSocket:', error);
       this.isConnecting = false;
+      this.emit('error', error);
     }
   }
 
@@ -80,6 +96,7 @@ class WebSocketClient {
       this.ws.close();
       this.ws = null;
     }
+    this.isConnecting = false;
   }
 
   send(data) {
@@ -90,7 +107,6 @@ class WebSocketClient {
     }
   }
 
-  // Event listener management
   on(event, callback) {
     if (!this.listeners.has(event)) {
       this.listeners.set(event, []);
@@ -99,25 +115,19 @@ class WebSocketClient {
   }
 
   off(event, callback) {
-    if (!this.listeners.has(event)) return;
-    
-    const callbacks = this.listeners.get(event);
-    const index = callbacks.indexOf(callback);
-    if (index > -1) {
-      callbacks.splice(index, 1);
+    if (this.listeners.has(event)) {
+      const callbacks = this.listeners.get(event);
+      const index = callbacks.indexOf(callback);
+      if (index > -1) {
+        callbacks.splice(index, 1);
+      }
     }
   }
 
   emit(event, data) {
-    if (!this.listeners.has(event)) return;
-    
-    this.listeners.get(event).forEach(callback => {
-      try {
-        callback(data);
-      } catch (error) {
-        console.error(`Error in ${event} listener:`, error);
-      }
-    });
+    if (this.listeners.has(event)) {
+      this.listeners.get(event).forEach((callback) => callback(data));
+    }
   }
 
   isConnected() {
@@ -125,7 +135,5 @@ class WebSocketClient {
   }
 }
 
-// Create singleton instance
-const wsClient = new WebSocketClient();
-
-export default wsClient;
+const webSocketClient = new WebSocketClient();
+export default webSocketClient;
