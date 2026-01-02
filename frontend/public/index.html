@@ -1,13 +1,247 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>DevOps Fraud Shield</title>
-    <link rel="stylesheet" href="%PUBLIC_URL%/assets/ui-theme.css" />
-  </head>
-  <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
-  </body>
+<head>
+  <!-- Primary Meta Tags -->
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes" />
+  <meta name="description" content="DevOps Fraud Shield - Advanced AI-powered security platform for real-time fraud detection and threat protection in DevOps environments" />
+  <meta name="keywords" content="DevOps, security, fraud detection, AI, threat protection, cybersecurity, real-time monitoring" />
+  <meta name="author" content="Shaik Abdul Sammed" />
+  <meta name="robots" content="index, follow" />
+  <meta name="theme-color" content="#2563eb" />
+  
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://devops-shield.example.com/" />
+  <meta property="og:title" content="DevOps Fraud Shield - AI-Powered Security Platform" />
+  <meta property="og:description" content="Advanced AI-powered security platform for real-time fraud detection and threat protection in DevOps environments" />
+  <meta property="og:image" content="%PUBLIC_URL%/assets/og-image.png" />
+  <meta property="og:site_name" content="DevOps Fraud Shield" />
+  
+  <!-- Twitter -->
+  <meta property="twitter:card" content="summary_large_image" />
+  <meta property="twitter:url" content="https://devops-shield.example.com/" />
+  <meta property="twitter:title" content="DevOps Fraud Shield - AI-Powered Security Platform" />
+  <meta property="twitter:description" content="Advanced AI-powered security platform for real-time fraud detection and threat protection" />
+  <meta property="twitter:image" content="%PUBLIC_URL%/assets/twitter-image.png" />
+  
+  <!-- Security Headers -->
+  <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+  <meta http-equiv="X-Frame-Options" content="DENY" />
+  <meta http-equiv="X-XSS-Protection" content="1; mode=block" />
+  <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' https:; connect-src 'self' https:; media-src 'self' https:; object-src 'none'; base-uri 'self'; form-action 'self';" />
+  
+  <!-- Favicon and App Icons -->
+  <link rel="icon" type="image/svg+xml" href="%PUBLIC_URL%/assets/favicon.svg" />
+  <link rel="icon" type="image/png" sizes="32x32" href="%PUBLIC_URL%/assets/favicon-32x32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="%PUBLIC_URL%/assets/favicon-16x16.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="%PUBLIC_URL%/assets/apple-touch-icon.png" />
+  <link rel="mask-icon" href="%PUBLIC_URL%/assets/safari-pinned-tab.svg" color="#2563eb" />
+  
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
+  
+  <!-- Preconnect to External Domains -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="preconnect" href="https://api.devops-shield.com" />
+  
+  <!-- Preload Critical Resources -->
+  <link rel="preload" href="%PUBLIC_URL%/assets/ui-theme.css" as="style" />
+  <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" as="style" />
+  
+  <!-- Stylesheets -->
+  <link rel="stylesheet" href="%PUBLIC_URL%/assets/ui-theme.css" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" />
+  
+  <!-- Title -->
+  <title>DevOps Fraud Shield - AI-Powered Security Platform</title>
+  
+  <!-- Structured Data -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "DevOps Fraud Shield",
+    "description": "Advanced AI-powered security platform for real-time fraud detection and threat protection in DevOps environments",
+    "url": "https://devops-shield.example.com/",
+    "applicationCategory": "SecurityApplication",
+    "operatingSystem": "Web Browser",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    },
+    "author": {
+      "@type": "Organization",
+      "name": "DevOps Security Team"
+    },
+    "provider": {
+      "@type": "Organization",
+      "name": "DevOps Security Solutions"
+    }
+  }
+  </script>
+</head>
+<body>
+  <!-- Skip to main content for accessibility -->
+  <a href="#main-content" class="skip-link" aria-label="Skip to main content">
+    Skip to main content
+  </a>
+  
+  <!-- Loading Screen -->
+  <div id="loading-screen" class="loading-screen" role="status" aria-label="Loading application">
+    <div class="loading-container">
+      <div class="loading-logo">
+        <svg width="60" height="60" viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path d="M30 5C16.2 5 5 16.2 5 30C5 43.8 16.2 55 30 55C43.8 55 55 43.8 55 30C55 16.2 43.8 5 30 5Z" stroke="#2563eb" stroke-width="3" stroke-linecap="round"/>
+          <path d="M20 30L25 35L40 20" stroke="#2563eb" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div class="loading-text">
+        <h2>DevOps Fraud Shield</h2>
+        <p>Initializing security protocols...</p>
+      </div>
+      <div class="loading-progress">
+        <div class="progress-bar">
+          <div class="progress-fill"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Main Application Container -->
+  <div id="root" role="application" aria-label="DevOps Fraud Shield Application"></div>
+  
+  <!-- Fallback for no JavaScript -->
+  <noscript>
+    <div class="noscript-fallback">
+      <div class="noscript-content">
+        <h1>JavaScript Required</h1>
+        <p>DevOps Fraud Shield requires JavaScript to function properly. Please enable JavaScript in your browser settings and reload the page.</p>
+        <div class="noscript-features">
+          <h3>What you're missing:</h3>
+          <ul>
+            <li>🛡️ Real-time fraud detection</li>
+            <li>🤖 AI-powered threat analysis</li>
+            <li>📊 Advanced security dashboard</li>
+            <li>🔐 Multi-layer protection</li>
+            <li>⚡ Instant threat alerts</li>
+          </ul>
+        </div>
+        <div class="noscript-help">
+          <h3>Need help enabling JavaScript?</h3>
+          <p>Visit <a href="https://www.enable-javascript.com/" target="_blank" rel="noopener">enable-javascript.com</a> for browser-specific instructions.</p>
+        </div>
+      </div>
+    </div>
+    
+    <style>
+      .noscript-fallback {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+        color: #f8fafc;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+      }
+      
+      .noscript-content {
+        max-width: 600px;
+        padding: 2rem;
+        text-align: center;
+        background: rgba(30, 41, 59, 0.9);
+        border-radius: 1rem;
+        border: 1px solid #475569;
+        backdrop-filter: blur(10px);
+      }
+      
+      .noscript-content h1 {
+        color: #ef4444;
+        margin-bottom: 1rem;
+        font-size: 2rem;
+      }
+      
+      .noscript-content h3 {
+        color: #3b82f6;
+        margin: 1.5rem 0 0.5rem 0;
+      }
+      
+      .noscript-content ul {
+        text-align: left;
+        color: #cbd5e1;
+      }
+      
+      .noscript-content a {
+        color: #60a5fa;
+        text-decoration: underline;
+      }
+      
+      .noscript-content a:hover {
+        color: #93c5fd;
+      }
+    </style>
+  </noscript>
+  
+  <!-- Performance Monitoring -->
+  <script>
+    // Performance monitoring
+    if ('performance' in window && 'measure' in window.performance) {
+      window.addEventListener('load', function() {
+        setTimeout(function() {
+          const perfData = window.performance.timing;
+          const pageLoadTime = perfData.loadEventEnd - perfData.navigationStart;
+          console.log('Page load time:', pageLoadTime + 'ms');
+        }, 0);
+      });
+    }
+    
+    // Error tracking
+    window.addEventListener('error', function(e) {
+      console.error('Application error:', e.error);
+      // In production, send to error tracking service
+    });
+    
+    // Unhandled promise rejections
+    window.addEventListener('unhandledrejection', function(e) {
+      console.error('Unhandled promise rejection:', e.reason);
+      // In production, send to error tracking service
+    });
+  </script>
+  
+  <!-- Service Worker Registration -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function() {
+        navigator.serviceWorker.register('%PUBLIC_URL%/sw.js')
+          .then(function(registration) {
+            console.log('SW registered: ', registration);
+            
+            // Check for updates
+            registration.addEventListener('updatefound', function() {
+              const newWorker = registration.installing;
+              newWorker.addEventListener('statechange', function() {
+                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                  // New content is available
+                  if (confirm('New version available! Reload to update?')) {
+                    window.location.reload();
+                  }
+                }
+              });
+            });
+          })
+          .catch(function(error) {
+            console.log('SW registration failed: ', error);
+          });
+      });
+    }
+  </script>
+</body>
 </html>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import './App.css';
 import Dashboard from './pages/Dashboard.jsx';
 import Pipelines from './pages/Pipelines.jsx';
@@ -10,6 +10,9 @@ import SimulationPage from './pages/Simulation.jsx';
 import GitHubConnect from './pages/GitHubConnect.jsx';
 import BlockchainDashboard from './components/BlockchainDashboard.jsx';
 import AuthBanner from './components/AuthBanner.jsx';
+import LoadingSpinner from './components/LoadingSpinner.jsx';
+import ErrorBoundary from './components/ErrorBoundary.jsx';
+import NotificationSystem from './components/NotificationSystem.jsx';
 import {
   pipelines as pipelineData,
   runsByPipeline as runsData,
@@ -24,6 +27,7 @@ import {
   simulationRiskHistory,
 } from './utils/sampleData.js';
 
+// Constants
 const VIEWS = {
   DASHBOARD: 'dashboard',
   PIPELINES: 'pipelines',
@@ -36,60 +40,257 @@ const VIEWS = {
   BLOCKCHAIN: 'blockchain'
 };
 
-const navItems = [
-  { id: VIEWS.DASHBOARD, label: 'Dashboard' },
-  { id: VIEWS.PIPELINES, label: 'Pipelines' },
-  { id: VIEWS.ALERTS, label: 'Alerts' },
-  { id: VIEWS.SIMULATION, label: 'Attack Simulation' },
-  { id: VIEWS.BLOCKCHAIN, label: 'Blockchain Audit' },
-  { id: VIEWS.AUDIT, label: 'Audit' },
-  { id: VIEWS.SETTINGS, label: 'Settings' },
-  { id: VIEWS.GITHUB, label: 'GitHub Connect' },
-  { id: VIEWS.IMPACT, label: 'Societal Impact' }
+const NAVIGATION_ITEMS = [
+  { 
+    id: VIEWS.DASHBOARD, 
+    label: 'Dashboard', 
+    icon: '📊',
+    description: 'Overview and metrics',
+    shortcut: 'Ctrl+D'
+  },
+  { 
+    id: VIEWS.PIPELINES, 
+    label: 'Pipelines', 
+    icon: '🔄',
+    description: 'CI/CD pipeline status',
+    shortcut: 'Ctrl+P'
+  },
+  { 
+    id: VIEWS.ALERTS, 
+    label: 'Alerts', 
+    icon: '🚨',
+    description: 'Security alerts',
+    shortcut: 'Ctrl+A'
+  },
+  { 
+    id: VIEWS.SIMULATION, 
+    label: 'Attack Simulation', 
+    icon: '🧪',
+    description: 'Security simulations',
+    shortcut: 'Ctrl+S'
+  },
+  { 
+    id: VIEWS.BLOCKCHAIN, 
+    label: 'Blockchain Audit', 
+    icon: '⛓️',
+    description: 'Immutable audit trail',
+    shortcut: 'Ctrl+B'
+  },
+  { 
+    id: VIEWS.AUDIT, 
+    label: 'Audit', 
+    icon: '📋',
+    description: 'Audit logs',
+    shortcut: 'Ctrl+L'
+  },
+  { 
+    id: VIEWS.SETTINGS, 
+    label: 'Settings', 
+    icon: '⚙️',
+    description: 'Configuration',
+    shortcut: 'Ctrl+,'
+  },
+  { 
+    id: VIEWS.GITHUB, 
+    label: 'GitHub Connect', 
+    icon: '🔗',
+    description: 'GitHub integration',
+    shortcut: 'Ctrl+G'
+  },
+  { 
+    id: VIEWS.IMPACT, 
+    label: 'Societal Impact', 
+    icon: '🌍',
+    description: 'Impact metrics',
+    shortcut: 'Ctrl+I'
+  }
 ];
 
 const App = () => {
+  // State management
   const [view, setView] = useState(VIEWS.DASHBOARD);
   const [activePipelineId, setActivePipelineId] = useState(pipelineData[0]?.id);
-  const defaultRunId = runsData[pipelineData[0]?.id]?.[0]?.runId;
-  const [activeRunId, setActiveRunId] = useState(defaultRunId);
+  const [activeRunId, setActiveRunId] = useState(runsData[pipelineData[0]?.id]?.[0]?.runId);
   const [alertsState, setAlertsState] = useState(alertData);
   const [authState, setAuthState] = useState(authSession);
   const [integrationsState, setIntegrationsState] = useState(integrations);
   const [latestIncident, setLatestIncident] = useState(null);
   const [simulationRisk, setSimulationRisk] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [theme, setTheme] = useState('dark');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [keyboardShortcutsEnabled, setKeyboardShortcutsEnabled] = useState(true);
+  
+  // Refs
+  const mainContentRef = useRef(null);
+  const notificationTimeoutRef = useRef(null);
 
-  const onSelectPipeline = (pipelineId) => {
+  // Memoized values
+  const filteredNavItems = useMemo(() => {
+    if (!searchQuery) return NAVIGATION_ITEMS;
+    
+    return NAVIGATION_ITEMS.filter(item => 
+      item.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.description.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [searchQuery]);
+
+  const criticalAlertsCount = useMemo(() => {
+    return alertsState.filter(alert => 
+      alert.severity === 'Critical' && alert.status === 'Open'
+    ).length;
+  }, [alertsState]);
+
+  // Effects
+  useEffect(() => {
+    // Initialize theme from localStorage
+    const savedTheme = localStorage.getItem('devops-shield-theme') || 'dark';
+    setTheme(savedTheme);
+    document.documentElement.setAttribute('data-theme', savedTheme);
+
+    // Initialize sidebar state
+    const savedSidebarState = localStorage.getItem('devops-shield-sidebar-collapsed');
+    if (savedSidebarState !== null) {
+      setSidebarCollapsed(JSON.parse(savedSidebarState));
+    }
+
+    // Initialize keyboard shortcuts
+    const handleKeyboardShortcuts = (e) => {
+      if (!keyboardShortcutsEnabled) return;
+      
+      const ctrlKey = e.ctrlKey || e.metaKey;
+      const key = e.key.toLowerCase();
+      
+      if (ctrlKey) {
+        switch (key) {
+          case 'd':
+            e.preventDefault();
+            setView(VIEWS.DASHBOARD);
+            break;
+          case 'p':
+            e.preventDefault();
+            setView(VIEWS.PIPELINES);
+            break;
+          case 'a':
+            e.preventDefault();
+            setView(VIEWS.ALERTS);
+            break;
+          case 's':
+            e.preventDefault();
+            setView(VIEWS.SIMULATION);
+            break;
+          case 'b':
+            e.preventDefault();
+            setView(VIEWS.BLOCKCHAIN);
+            break;
+          case 'l':
+            e.preventDefault();
+            setView(VIEWS.AUDIT);
+            break;
+          case ',':
+            e.preventDefault();
+            setView(VIEWS.SETTINGS);
+            break;
+          case 'g':
+            e.preventDefault();
+            setView(VIEWS.GITHUB);
+            break;
+          case 'i':
+            e.preventDefault();
+            setView(VIEWS.IMPACT);
+            break;
+          case 'k':
+            e.preventDefault();
+            setSearchQuery('');
+            document.getElementById('nav-search')?.focus();
+            break;
+        }
+      }
+      
+      // Escape to clear search
+      if (e.key === 'Escape' && searchQuery) {
+        setSearchQuery('');
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyboardShortcuts);
+    return () => document.removeEventListener('keydown', handleKeyboardShortcuts);
+  }, [keyboardShortcutsEnabled]);
+
+  useEffect(() => {
+    // Auto-save preferences
+    localStorage.setItem('devops-shield-theme', theme);
+    localStorage.setItem('devops-shield-sidebar-collapsed', JSON.stringify(sidebarCollapsed));
+  }, [theme, sidebarCollapsed]);
+
+  useEffect(() => {
+    // Focus management for accessibility
+    if (mainContentRef.current) {
+      mainContentRef.current.focus();
+    }
+  }, [view]);
+
+  // Callback functions
+  const addNotification = useCallback((message, type = 'info', duration = 5000) => {
+    const id = Date.now().toString();
+    const notification = { id, message, type, timestamp: new Date() };
+    
+    setNotifications(prev => [...prev, notification]);
+    
+    // Auto-remove notification
+    if (notificationTimeoutRef.current) {
+      clearTimeout(notificationTimeoutRef.current);
+    }
+    
+    notificationTimeoutRef.current = setTimeout(() => {
+      setNotifications(prev => prev.filter(n => n.id !== id));
+    }, duration);
+  }, []);
+
+  const onSelectPipeline = useCallback((pipelineId) => {
     setActivePipelineId(pipelineId);
     const nextRunId = runsData[pipelineId]?.[0]?.runId;
     setActiveRunId(nextRunId);
     setView(VIEWS.PIPELINES);
-  };
+    addNotification(`Switched to pipeline: ${pipelineId}`, 'success');
+  }, [runsData, addNotification]);
 
-  const onSelectRun = (runId) => {
+  const onSelectRun = useCallback((runId) => {
     setActiveRunId(runId);
-  };
+    addNotification(`Selected run: ${runId}`, 'info');
+  }, [addNotification]);
 
-  const onRunAction = (action, payload) => {
+  const onRunAction = useCallback((action, payload) => {
+    setIsLoading(true);
     console.info('Run action', action, payload?.runId);
-  };
+    
+    // Simulate API call
+    setTimeout(() => {
+      setIsLoading(false);
+      addNotification(`Action "${action}" executed for run ${payload?.runId}`, 'success');
+    }, 1000);
+  }, [addNotification]);
 
-  const onAlertAction = (action, payload) => {
-    if (!payload?.id) {
-      return;
-    }
+  const onAlertAction = useCallback((action, payload) => {
+    if (!payload?.id) return;
 
     const alertId = payload.id;
-    const updateStatus = (status) => setAlertsState((prev) => prev.map((alert) => (
-      alert.id === alertId ? { ...alert, status } : alert
-    )));
+    const updateStatus = (status) => {
+      setAlertsState(prev => prev.map((alert) => 
+        alert.id === alertId ? { ...alert, status } : alert
+      ));
+    };
 
     switch (action) {
       case 'ack':
         updateStatus('Acknowledged');
+        addNotification(`Alert ${alertId} acknowledged`, 'success');
         break;
       case 'resolve':
         updateStatus('Resolved');
+        addNotification(`Alert ${alertId} resolved`, 'success');
         if (latestIncident?.id?.toLowerCase() === alertId.toLowerCase()) {
           setLatestIncident(null);
           setSimulationRisk(0);
@@ -97,54 +298,71 @@ const App = () => {
         break;
       case 'rollback':
         updateStatus('Mitigating');
+        addNotification(`Rollback initiated for alert ${alertId}`, 'warning');
         break;
       case 'ticket':
         updateStatus('Escalated');
+        addNotification(`Alert ${alertId} escalated to support team`, 'info');
         break;
       default:
         break;
     }
 
     console.info('Alert action', action, alertId);
-  };
+  }, [latestIncident, addNotification]);
 
-  const onExport = (format, record) => {
+  const onExport = useCallback((format, record) => {
+    setIsLoading(true);
     console.info('Export', format, record?.id);
-  };
+    
+    // Simulate export process
+    setTimeout(() => {
+      setIsLoading(false);
+      addNotification(`Exported ${record?.id} in ${format} format`, 'success');
+    }, 1500);
+  }, [addNotification]);
 
-  const onReconnect = (provider) => {
+  const onReconnect = useCallback((provider) => {
+    setIsLoading(true);
     console.info('Re-authenticate provider', provider);
+    
     const now = new Date().toISOString();
-    setAuthState((prev) => ({
+    setAuthState(prev => ({
       ...prev,
       status: 'Connected',
       lastVerification: now
     }));
-    setIntegrationsState((prev) => prev.map((integration) => (
+    setIntegrationsState(prev => prev.map((integration) => 
       integration.id === 'github'
         ? { ...integration, status: 'Connected', lastSync: now }
         : integration
-    )));
-  };
+    ));
+    
+    setTimeout(() => {
+      setIsLoading(false);
+      addNotification(`Successfully reconnected to ${provider}`, 'success');
+    }, 1000);
+  }, [addNotification]);
 
-  const handleGitHubDisconnect = () => {
+  const handleGitHubDisconnect = useCallback(() => {
     const now = new Date().toISOString();
-    setAuthState((prev) => ({
+    setAuthState(prev => ({
       ...prev,
       status: 'Disconnected',
       lastVerification: now,
       scopes: prev.scopes || []
     }));
-    setIntegrationsState((prev) => prev.map((integration) => (
+    setIntegrationsState(prev => prev.map((integration) => 
       integration.id === 'github'
         ? { ...integration, status: 'Disconnected', lastSync: now }
         : integration
-    )));
-  };
+    ));
+    addNotification('GitHub disconnected', 'info');
+  }, [addNotification]);
 
-  const handleGitHubConnect = ({ username, scopes, org }) => {
+  const handleGitHubConnect = useCallback(({ username, scopes, org }) => {
     const now = new Date().toISOString();
-    setAuthState((prev) => ({
+    setAuthState(prev => ({
       ...prev,
       status: 'Connected',
       account: username || prev.account,
@@ -152,7 +370,7 @@ const App = () => {
       organization: org || prev.organization,
       lastVerification: now
     }));
-    setIntegrationsState((prev) => prev.map((integration) => (
+    setIntegrationsState(prev => prev.map((integration) => 
       integration.id === 'github'
         ? {
             ...integration,
@@ -161,19 +379,21 @@ const App = () => {
             scopes: scopes?.length ? scopes : integration.scopes
           }
         : integration
-    )));
-  };
+    ));
+    addNotification(`Connected to GitHub as ${username}`, 'success');
+  }, [addNotification]);
 
-  const onDisconnect = (provider) => {
+  const onDisconnect = useCallback((provider) => {
     console.info('Disconnect provider', provider);
     handleGitHubDisconnect();
-  };
+  }, [handleGitHubDisconnect]);
 
-  const handleSimulationIncident = (incident) => {
+  const handleSimulationIncident = useCallback((incident) => {
     const normalizedRisk = Number.isFinite(incident.riskScore)
       ? Math.max(0, Math.round(incident.riskScore))
       : 0;
     const severity = normalizedRisk >= 90 ? 'Critical' : normalizedRisk >= 75 ? 'High' : normalizedRisk >= 50 ? 'Medium' : 'Low';
+    
     const newAlert = {
       id: incident.id.toLowerCase(),
       pipelineId: incident.pipelineId,
@@ -185,149 +405,315 @@ const App = () => {
       impact: incident.message || 'Automated drill impact pending review'
     };
 
-    setAlertsState((prev) => [newAlert, ...prev.filter((alert) => alert.id !== newAlert.id)]);
+    setAlertsState(prev => [newAlert, ...prev.filter(alert => alert.id !== newAlert.id)]);
     setLatestIncident({ ...incident, riskScore: normalizedRisk, severity });
     setSimulationRisk(normalizedRisk);
-  };
+    
+    addNotification(`Simulation incident: ${incident.scenarioName}`, 'warning', 8000);
+  }, [addNotification]);
 
-  const handleSimulationReset = () => {
+  const handleSimulationReset = useCallback(() => {
     setSimulationRisk(0);
-  };
+    setLatestIncident(null);
+    addNotification('Simulation reset completed', 'info');
+  }, [addNotification]);
 
-  let content;
-  switch (view) {
-    case VIEWS.DASHBOARD:
-      content = (
-        <Dashboard
-          pipelines={pipelineData}
-          runsByPipeline={runsData}
-          alerts={alertsState}
-          impactMetrics={impactMetrics}
-          authSession={authState}
-          securityHighlights={securityHighlights}
-          integrations={integrationsState}
-          latestIncident={latestIncident}
-          onSelectPipeline={onSelectPipeline}
-          onRunAction={onRunAction}
-          onAlertAction={onAlertAction}
-          onViewAlerts={() => setView(VIEWS.ALERTS)}
-          onManageIntegrations={() => setView(VIEWS.GITHUB)}
-        />
-      );
-      break;
-    case VIEWS.PIPELINES:
-      content = (
-        <Pipelines
-          pipelines={pipelineData}
-          runsByPipeline={runsData}
-          activePipelineId={activePipelineId}
-          activeRunId={activeRunId}
-          onSelectPipeline={onSelectPipeline}
-          onSelectRun={onSelectRun}
-          onRunAction={onRunAction}
-        />
-      );
-      break;
-    case VIEWS.ALERTS:
-      content = <AlertsPage alerts={alertsState} onAction={onAlertAction} />;
-      break;
-    case VIEWS.AUDIT:
-      content = <AuditPage records={auditRecords} onExport={onExport} />;
-      break;
-    case VIEWS.SETTINGS:
-      content = (
-        <SettingsPage
-          integrations={integrationsState}
-          policies={policyControls}
-          authSession={authState}
-          securityHighlights={securityHighlights}
-        />
-      );
-      break;
-    case VIEWS.IMPACT:
-      content = <ImpactPage impactMetrics={impactMetrics} />;
-      break;
-    case VIEWS.SIMULATION:
-      content = (
-        <SimulationPage
-          scenarios={attackScenarios}
-          history={simulationRiskHistory}
-          onIncident={handleSimulationIncident}
-          onReset={handleSimulationReset}
-        />
-      );
-      break;
-    case VIEWS.GITHUB:
-      content = (
-        <GitHubConnect
-          authSession={authState}
-          onConnect={handleGitHubConnect}
-          onDisconnect={handleGitHubDisconnect}
-        />
-      );
-      break;
-    case VIEWS.BLOCKCHAIN:
-      content = <BlockchainDashboard />;
-      break;
-    default:
-      content = null;
-  }
+  const toggleTheme = useCallback(() => {
+    const newTheme = theme === 'dark' ? 'light' : 'dark';
+    setTheme(newTheme);
+    document.documentElement.setAttribute('data-theme', newTheme);
+    addNotification(`Switched to ${newTheme} theme`, 'info');
+  }, [theme, addNotification]);
+
+  const toggleSidebar = useCallback(() => {
+    setSidebarCollapsed(prev => !prev);
+  }, []);
+
+  const handleNavigation = useCallback((viewId) => {
+    setView(viewId);
+    setSearchQuery(''); // Clear search when navigating
+  }, []);
+
+  // Render content based on current view
+  const renderContent = () => {
+    const commonProps = {
+      isLoading,
+      notifications,
+      addNotification
+    };
+
+    switch (view) {
+      case VIEWS.DASHBOARD:
+        return (
+          <Dashboard
+            pipelines={pipelineData}
+            runsByPipeline={runsData}
+            alerts={alertsState}
+            impactMetrics={impactMetrics}
+            authSession={authState}
+            securityHighlights={securityHighlights}
+            integrations={integrationsState}
+            latestIncident={latestIncident}
+            onSelectPipeline={onSelectPipeline}
+            onRunAction={onRunAction}
+            onAlertAction={onAlertAction}
+            onViewAlerts={() => handleNavigation(VIEWS.ALERTS)}
+            onManageIntegrations={() => handleNavigation(VIEWS.GITHUB)}
+            {...commonProps}
+          />
+        );
+      case VIEWS.PIPELINES:
+        return (
+          <Pipelines
+            pipelines={pipelineData}
+            runsByPipeline={runsData}
+            activePipelineId={activePipelineId}
+            activeRunId={activeRunId}
+            onSelectPipeline={onSelectPipeline}
+            onSelectRun={onSelectRun}
+            onRunAction={onRunAction}
+            {...commonProps}
+          />
+        );
+      case VIEWS.ALERTS:
+        return (
+          <AlertsPage 
+            alerts={alertsState} 
+            onAction={onAlertAction}
+            criticalCount={criticalAlertsCount}
+            {...commonProps}
+          />
+        );
+      case VIEWS.AUDIT:
+        return (
+          <AuditPage 
+            records={auditRecords} 
+            onExport={onExport}
+            {...commonProps}
+          />
+        );
+      case VIEWS.SETTINGS:
+        return (
+          <SettingsPage
+            integrations={integrationsState}
+            policies={policyControls}
+            authSession={authState}
+            securityHighlights={securityHighlights}
+            theme={theme}
+            onToggleTheme={toggleTheme}
+            keyboardShortcutsEnabled={keyboardShortcutsEnabled}
+            onToggleKeyboardShortcuts={() => setKeyboardShortcutsEnabled(prev => !prev)}
+            {...commonProps}
+          />
+        );
+      case VIEWS.IMPACT:
+        return (
+          <ImpactPage 
+            impactMetrics={impactMetrics}
+            {...commonProps}
+          />
+        );
+      case VIEWS.SIMULATION:
+        return (
+          <SimulationPage
+            scenarios={attackScenarios}
+            history={simulationRiskHistory}
+            onIncident={handleSimulationIncident}
+            onReset={handleSimulationReset}
+            currentRisk={simulationRisk}
+            {...commonProps}
+          />
+        );
+      case VIEWS.GITHUB:
+        return (
+          <GitHubConnect
+            authSession={authState}
+            onConnect={handleGitHubConnect}
+            onDisconnect={handleGitHubDisconnect}
+            {...commonProps}
+          />
+        );
+      case VIEWS.BLOCKCHAIN:
+        return (
+          <BlockchainDashboard
+            {...commonProps}
+          />
+        );
+      default:
+        return null;
+    }
+  };
 
   return (
-    <div className="shell">
-      <aside className="shell-nav">
-        <div className="nav-brand">DEVOPS SHIELD</div>
-        <nav>
-          {navItems.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              className={item.id === view ? 'nav-link active' : 'nav-link'}
-              onClick={() => setView(item.id)}
-            >
-              {item.label}
-            </button>
-          ))}
-        </nav>
-        <div className="nav-footer">
-          <span className="muted">Immutable by design · {new Date().getFullYear()}</span>
-        </div>
-      </aside>
-      <main className="shell-content">
-        <AuthBanner session={authState} onReconnect={onReconnect} onDisconnect={onDisconnect} />
-        <header className="content-header">
-          <div>
-            <h1>{navItems.find((item) => item.id === view)?.label}</h1>
-            <p className="muted">Production-ready CI/CD risk observability.</p>
-          </div>
-          <div className="header-actions">
-            <button
-              type="button"
-              className={`btn-outline simulate-cta ${simulationRisk > 0 ? 'armed' : ''}`}
-              onClick={() => setView(VIEWS.SIMULATION)}
-            >
-              Simulate attack
-              <span className="risk-chip">{Math.max(0, Math.round(simulationRisk))}% risk</span>
-            </button>
-            <button type="button" className="btn-primary" onClick={() => setView(VIEWS.GITHUB)}>Connect GitHub</button>
-          </div>
-        </header>
-        {latestIncident && (
-          <section className={`card incident-banner ${latestIncident.severity?.toLowerCase()}`}>
-            <div>
-              <strong>{latestIncident.severity} alert · {latestIncident.id}</strong>
-              <p className="muted">Risk {latestIncident.riskScore}% on {latestIncident.pipelineId}. {latestIncident.message}</p>
+    <ErrorBoundary>
+      <div className={`shell ${theme} ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
+        {/* Loading Overlay */}
+        {isLoading && <LoadingSpinner />}
+        
+        {/* Notification System */}
+        <NotificationSystem 
+          notifications={notifications}
+          onRemove={(id) => setNotifications(prev => prev.filter(n => n.id !== id))}
+        />
+        
+        {/* Sidebar Navigation */}
+        <aside className="shell-nav" role="navigation" aria-label="Main navigation">
+          <div className="nav-header">
+            <div className="nav-brand">
+              <span className="brand-icon">🛡️</span>
+              <span className="brand-text">DEVOPS SHIELD</span>
             </div>
-            <div className="incident-banner-actions">
-              <button type="button" className="btn-outline" onClick={() => setView(VIEWS.ALERTS)}>Open alerts</button>
+            <button
+              className="nav-toggle"
+              onClick={toggleSidebar}
+              aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              aria-expanded={!sidebarCollapsed}
+            >
+              <span className="toggle-icon">{sidebarCollapsed ? '→' : '←'}</span>
+            </button>
+          </div>
+          
+          {/* Search */}
+          <div className="nav-search">
+            <input
+              id="nav-search"
+              type="text"
+              placeholder="Search navigation..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              aria-label="Search navigation items"
+            />
+            <span className="search-icon">🔍</span>
+          </div>
+          
+          {/* Navigation Items */}
+          <nav className="nav-items">
+            {filteredNavItems.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                className={`nav-link ${item.id === view ? 'active' : ''}`}
+                onClick={() => handleNavigation(item.id)}
+                aria-label={`${item.label} - ${item.description}`}
+                aria-current={item.id === view ? 'page' : undefined}
+                title={`${item.label} (${item.shortcut})`}
+              >
+                <span className="nav-icon" aria-hidden="true">{item.icon}</span>
+                <span className="nav-text">
+                  <span className="nav-label">{item.label}</span>
+                  <span className="nav-description">{item.description}</span>
+                </span>
+                {item.id === VIEWS.ALERTS && criticalAlertsCount > 0 && (
+                  <span className="nav-badge" aria-label={`${criticalAlertsCount} critical alerts`}>
+                    {criticalAlertsCount}
+                  </span>
+                )}
+              </button>
+            ))}
+          </nav>
+          
+          {/* Footer */}
+          <div className="nav-footer">
+            <div className="footer-info">
+              <span className="muted">Immutable by design · {new Date().getFullYear()}</span>
             </div>
-          </section>
-        )}
-        <div className="content-body">
-          {content}
-        </div>
-      </main>
-    </div>
+            <div className="footer-actions">
+              <button
+                className="footer-btn"
+                onClick={toggleTheme}
+                aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
+                title={`Toggle theme (${theme === 'dark' ? 'Ctrl+Shift+L' : 'Ctrl+Shift+D'})`}
+              >
+                <span className="theme-icon">{theme === 'dark' ? '☀️' : '🌙'}</span>
+              </button>
+            </div>
+          </div>
+        </aside>
+
+        {/* Main Content */}
+        <main className="shell-content" ref={mainContentRef} tabIndex="-1">
+          <AuthBanner 
+            session={authState} 
+            onReconnect={onReconnect} 
+            onDisconnect={onDisconnect}
+          />
+          
+          {/* Header */}
+          <header className="content-header">
+            <div className="header-title">
+              <h1>{NAVIGATION_ITEMS.find(item => item.id === view)?.label}</h1>
+              <p className="muted">Production-ready CI/CD risk observability</p>
+            </div>
+            <div className="header-actions">
+              <button
+                type="button"
+                className={`btn-outline simulate-cta ${simulationRisk > 0 ? 'armed' : ''}`}
+                onClick={() => handleNavigation(VIEWS.SIMULATION)}
+                aria-label={`Simulate attack - Current risk: ${Math.max(0, Math.round(simulationRisk))}%`}
+              >
+                <span className="btn-icon">🧪</span>
+                <span className="btn-text">Simulate attack</span>
+                <span className="risk-chip" aria-label={`Risk level: ${Math.max(0, Math.round(simulationRisk))}%`}>
+                  {Math.max(0, Math.round(simulationRisk))}% risk
+                </span>
+              </button>
+              <button 
+                type="button" 
+                className="btn-primary" 
+                onClick={() => handleNavigation(VIEWS.GITHUB)}
+                aria-label="Connect GitHub repository"
+              >
+                <span className="btn-icon">🔗</span>
+                <span className="btn-text">Connect GitHub</span>
+              </button>
+            </div>
+          </header>
+
+          {/* Incident Banner */}
+          {latestIncident && (
+            <section 
+              className={`card incident-banner ${latestIncident.severity?.toLowerCase()}`}
+              role="alert"
+              aria-live="polite"
+            >
+              <div className="incident-content">
+                <div className="incident-header">
+                  <strong>{latestIncident.severity} alert · {latestIncident.id}</strong>
+                  <p className="muted">
+                    Risk {latestIncident.riskScore}% on {latestIncident.pipelineId}. {latestIncident.message}
+                  </p>
+                </div>
+                <div className="incident-banner-actions">
+                  <button 
+                    type="button" 
+                    className="btn-outline" 
+                    onClick={() => handleNavigation(VIEWS.ALERTS)}
+                    aria-label="View all alerts"
+                  >
+                    Open alerts
+                  </button>
+                  <button 
+                    type="button" 
+                    className="btn-outline" 
+                    onClick={handleSimulationReset}
+                    aria-label="Reset simulation"
+                  >
+                    Reset
+                  </button>
+                </div>
+              </div>
+            </section>
+          )}
+
+          {/* Page Content */}
+          <div className="content-body">
+            <ErrorBoundary>
+              {renderContent()}
+            </ErrorBoundary>
+          </div>
+        </main>
+      </div>
+    </ErrorBoundary>
   );
 };
 
