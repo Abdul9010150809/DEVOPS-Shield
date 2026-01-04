@@ -1,5 +1,6 @@
 :root {
   color-scheme: dark;
+  /* Performance-optimized color variables */
   --bg-surface: #0f172a;
   --bg-panel: rgba(15, 23, 42, 0.82);
   --bg-card: rgba(17, 24, 39, 0.78);
@@ -15,11 +16,31 @@
   --risk-high: #f97316;
   --risk-critical: #ef4444;
   --risk-unknown: #6366f1;
-  font-family: 'Inter', 'Segoe UI', sans-serif;
+  
+  /* Performance optimization variables */
+  --transition-fast: 150ms ease-out;
+  --transition-base: 250ms ease-out;
+  --transition-slow: 350ms ease-out;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.07);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+  
+  font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  /* Enable hardware acceleration */
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
 }
 
+/* Performance-optimized base styles */
 * {
   box-sizing: border-box;
+}
+
+/* Optimize scrolling performance */
+html {
+  scroll-behavior: smooth;
+  overflow-anchor: none;
 }
 
 body {
@@ -27,10 +48,22 @@ body {
   background: radial-gradient(circle at top, #172554 0%, #020617 60%);
   color: var(--text-primary);
   min-height: 100vh;
+  /* Optimize rendering */
+  will-change: scroll-position;
+  contain: layout style paint;
+  /* Enable font-display for better loading */
+  font-display: swap;
 }
 
+/* Optimized button styles */
 button {
   font-family: inherit;
+  /* Optimize for touch and performance */
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  /* Enable hardware acceleration */
+  transform: translateZ(0);
+  backface-visibility: hidden;
 }
 
 a {
@@ -42,9 +75,14 @@ a:hover {
   text-decoration: underline;
 }
 
+/* Performance-optimized shell layout */
 .shell {
   display: flex;
   min-height: 100vh;
+  /* Optimize layout performance */
+  contain: layout;
+  /* Enable hardware acceleration */
+  transform: translateZ(0);
 }
 
 .shell-nav {

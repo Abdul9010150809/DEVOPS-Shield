@@ -29,6 +29,7 @@ import uvicorn
 import time
 import psutil
 import logging
+import hashlib
 from prometheus_client import Counter, Histogram, Gauge, generate_latest, CONTENT_TYPE_LATEST
 
 # Security
@@ -40,6 +41,7 @@ from slowapi.errors import RateLimitExceeded
 from src.utils.logger import get_logger
 from src.utils.config import Config
 from src.utils.metrics import MetricsCollector
+from src.utils.database_pool import get_database_pool, DatabaseConfig
 from src.security.audit_logger import security_audit_logger
 from src.security.backup_recovery import backup_manager
 from src.security.secrets_manager import secret_vault
@@ -92,15 +94,17 @@ except Exception as e:
 
 # Performance monitoring middleware
 try:
-    from src.middleware.performance_monitor import PerformanceMonitorMiddleware
-    from src.middleware.cache_middleware import CacheMiddleware
+    from src.middleware.performance_monitor import PerformanceMonitorMiddleware, CacheMiddleware, get_performance_metrics
+    from src.middleware.performance_monitor import reset_performance_metrics as reset_metrics
     performance_modules_loaded = True
-    logger.info("Performance modules loaded successfully")
+    logger.info("Performance monitoring modules loaded successfully")
 except Exception as e:
-    logger.error(f"Performance modules failed to load: {e}")
+    logger.error(f"Performance monitoring modules failed to load: {e}")
     performance_modules_loaded = False
     PerformanceMonitorMiddleware = None
     CacheMiddleware = None
+    get_performance_metrics = None
+    reset_metrics = None
 
 # Initialize metrics collector
 metrics_collector = MetricsCollector()
@@ -122,6 +126,21 @@ async def lifespan(app: FastAPI):
         if performance_modules_loaded:
             await metrics_collector.start_monitoring()
             logger.info("Performance monitoring started")
+            
+            # Initialize database pool
+            db_config = DatabaseConfig(
+                host=os.getenv("DB_HOST", "localhost"),
+                port=int(os.getenv("DB_PORT", 5432)),
+                database=os.getenv("DB_NAME", "devops_shield"),
+                username=os.getenv("DB_USER", "postgres"),
+                password=os.getenv("DB_PASSWORD", ""),
+                min_connections=int(os.getenv("DB_MIN_CONNECTIONS", 5)),
+                max_connections=int(os.getenv("DB_MAX_CONNECTIONS", 20)),
+                enable_query_cache=os.getenv("DB_QUERY_CACHE", "true").lower() == "true",
+                query_cache_size=int(os.getenv("DB_QUERY_CACHE_SIZE", 1000))
+            )
+            await get_database_pool(db_config)
+            logger.info("Database pool initialized")
         
         # Database health check
         await check_database_health()
@@ -228,7 +247,11 @@ if security_modules_loaded and IPWhitelistMiddleware and os.getenv("IP_WHITELIST
 # Performance monitoring middleware
 if performance_modules_loaded and PerformanceMonitorMiddleware:
     try:
-        app.add_middleware(PerformanceMonitorMiddleware)
+        app.add_middleware(PerformanceMonitorMiddleware, 
+                          enable_system_monitoring=True,
+                          system_monitoring_interval=30,
+                          enable_gc_monitoring=True,
+                          gc_threshold=1000)
         logger.info("Performance monitoring middleware added")
     except Exception as e:
         logger.error(f"Failed to add performance monitoring middleware: {e}")
@@ -236,7 +259,11 @@ if performance_modules_loaded and PerformanceMonitorMiddleware:
 # Cache middleware
 if performance_modules_loaded and CacheMiddleware:
     try:
-        app.add_middleware(CacheMiddleware)
+        app.add_middleware(CacheMiddleware,
+                          cache_ttl=int(os.getenv("CACHE_TTL", 300)),
+                          max_cache_size=int(os.getenv("CACHE_MAX_SIZE", 1000)),
+                          cacheable_methods=["GET"],
+                          cacheable_status_codes=[200, 304])
         logger.info("Cache middleware added")
     except Exception as e:
         logger.error(f"Failed to add cache middleware: {e}")
@@ -399,7 +426,173 @@ async def root(request: Request) -> Dict[str, Any]:
         "timestamp": datetime.now(timezone.utc).isoformat()
     }
 
-# Security audit endpoint
+# Performance dashboard endpoint
+@app.get("/api/performance/dashboard")
+@limiter.limit("30/minute")
+async def performance_dashboard(request: Request) -> Dict[str, Any]:
+    """Comprehensive performance dashboard with detailed metrics"""
+    try:
+        # Get performance metrics
+        perf_metrics = get_performance_metrics() if get_performance_metrics else {}
+        
+        # Get database metrics
+        db_metrics = {}
+        try:
+            from src.utils.database_pool import db_pool
+            if db_pool:
+                db_metrics = db_pool.get_performance_metrics()
+        except Exception as e:
+            logger.error(f"Database metrics error: {e}")
+            db_metrics = {"error": str(e)}
+        
+        # System resource metrics
+        system_metrics = {
+            "memory": {
+                "total_gb": psutil.virtual_memory().total / 1024 / 1024 / 1024,
+                "available_gb": psutil.virtual_memory().available / 1024 / 1024 / 1024,
+                "used_percent": psutil.virtual_memory().percent,
+                "used_gb": psutil.virtual_memory().used / 1024 / 1024 / 1024
+            },
+            "cpu": {
+                "percent": psutil.cpu_percent(interval=1),
+                "count": psutil.cpu_count(),
+                "frequency_mhz": psutil.cpu_freq().current if psutil.cpu_freq() else 0
+            },
+            "disk": {
+                "total_gb": psutil.disk_usage('/').total / 1024 / 1024 / 1024,
+                "free_gb": psutil.disk_usage('/').free / 1024 / 1024 / 1024,
+                "used_percent": (psutil.disk_usage('/').used / psutil.disk_usage('/').total) * 100
+            },
+            "network": {
+                "connections": len(psutil.net_connections()),
+                "bytes_sent": psutil.net_io_counters().bytes_sent if psutil.net_io_counters() else 0,
+                "bytes_recv": psutil.net_io_counters().bytes_recv if psutil.net_io_counters() else 0
+            }
+        }
+        
+        # Application metrics
+        app_metrics = {
+            "uptime_seconds": (datetime.now(timezone.utc) - application_state["startup_time"]).total_seconds(),
+            "request_count": application_state["request_count"],
+            "error_count": application_state["error_count"],
+            "error_rate": (application_state["error_count"] / application_state["request_count"] * 100) if application_state["request_count"] > 0 else 0,
+            "last_health_check": application_state["last_health_check"].isoformat() if application_state["last_health_check"] else None
+        }
+        
+        # Performance recommendations
+        recommendations = []
+        
+        # Memory recommendations
+        if system_metrics["memory"]["used_percent"] > 80:
+            recommendations.append("High memory usage detected. Consider optimizing memory usage or increasing resources.")
+        
+        # CPU recommendations
+        if system_metrics["cpu"]["percent"] > 80:
+            recommendations.append("High CPU usage detected. Consider optimizing code or scaling horizontally.")
+        
+        # Database recommendations
+        if db_metrics.get("avg_response_time_ms", 0) > 1000:
+            recommendations.append("Slow database queries detected. Consider optimizing queries or adding indexes.")
+        
+        # Error rate recommendations
+        if app_metrics["error_rate"] > 5:
+            recommendations.append("High error rate detected. Check application logs for issues.")
+        
+        return {
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "status": "healthy" if len(recommendations) == 0 else "warning",
+            "performance_metrics": perf_metrics,
+            "database_metrics": db_metrics,
+            "system_metrics": system_metrics,
+            "application_metrics": app_metrics,
+            "recommendations": recommendations,
+            "performance_score": calculate_performance_score(system_metrics, db_metrics, app_metrics)
+        }
+        
+    except Exception as e:
+        logger.error(f"Performance dashboard error: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={
+                "status": "error",
+                "error": str(e),
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            }
+        )
+
+def calculate_performance_score(system_metrics: Dict, db_metrics: Dict, app_metrics: Dict) -> int:
+    """Calculate overall performance score (0-100)"""
+    score = 100
+    
+    # Memory score (0-30 points)
+    memory_percent = system_metrics.get("memory", {}).get("used_percent", 0)
+    if memory_percent > 90:
+        score -= 30
+    elif memory_percent > 80:
+        score -= 20
+    elif memory_percent > 70:
+        score -= 10
+    
+    # CPU score (0-20 points)
+    cpu_percent = system_metrics.get("cpu", {}).get("percent", 0)
+    if cpu_percent > 90:
+        score -= 20
+    elif cpu_percent > 80:
+        score -= 15
+    elif cpu_percent > 70:
+        score -= 10
+    
+    # Database score (0-30 points)
+    db_response_time = db_metrics.get("avg_response_time_ms", 0)
+    if db_response_time > 2000:
+        score -= 30
+    elif db_response_time > 1000:
+        score -= 20
+    elif db_response_time > 500:
+        score -= 10
+    
+    # Error rate score (0-20 points)
+    error_rate = app_metrics.get("error_rate", 0)
+    if error_rate > 10:
+        score -= 20
+    elif error_rate > 5:
+        score -= 15
+    elif error_rate > 2:
+        score -= 10
+    elif error_rate > 1:
+        score -= 5
+    
+    return max(0, score)
+
+# Performance reset endpoint
+@app.post("/api/performance/reset")
+@limiter.limit("10/minute")
+async def reset_performance(request: Request) -> Dict[str, Any]:
+    """Reset performance metrics"""
+    try:
+        if reset_metrics:
+            reset_metrics()
+        
+        application_state["request_count"] = 0
+        application_state["error_count"] = 0
+        application_state["last_health_check"] = None
+        
+        return {
+            "status": "success",
+            "message": "Performance metrics reset successfully",
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Performance reset error: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={
+                "status": "error",
+                "error": str(e),
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            }
+        )
 @app.get("/api/security/audit")
 @limiter.limit("30/minute")
 async def security_audit(request: Request) -> Dict[str, Any]:
